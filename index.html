@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIDY TRACKER — World</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+  :root{
+    --frame: #0f6e8c;
+    --frame-light: #1ea3c9;
+    --map-bg: #0a2a44;
+    --map-line: #14405f;
+    --amber: #ffb020;
+    --red: #e4453f;
+    --green: #4fbf7a;
+    --blue: #4fa8d8;
+    --ink: #dff3fb;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; image-rendering:pixelated; }
+  html,body{ background:#04202f; height:100%; font-family:'VT323',monospace; }
+
+  .app{
+    max-width:430px; margin:0 auto; min-height:100vh;
+    background:var(--frame);
+    display:flex; flex-direction:column;
+    border-left:6px solid var(--frame-light);
+    border-right:6px solid var(--frame-light);
+  }
+
+  /* ---------- Header ---------- */
+  .header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 10px;
+  }
+  .menu-btn{
+    width:44px; height:44px; border-radius:50%;
+    background:#e88a2b;
+    border:3px solid #05202e;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .menu-btn div{ width:20px; height:3px; background:#3a1c00; box-shadow:0 6px 0 #3a1c00, 0 -6px 0 #3a1c00; }
+
+  .title-plate{
+    flex:1; margin:0 10px;
+    background:#052233;
+    border:3px solid var(--frame-light);
+    border-radius:4px;
+    text-align:center;
+    padding:8px 4px;
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    color:var(--ink);
+    letter-spacing:1px;
+  }
+  .title-plate .accent{ color:var(--red); }
+
+  .live-badge{
+    display:flex; align-items:center; justify-content:center; gap:5px;
+    margin-top:4px;
+    font-family:'VT323',monospace;
+    font-size:12px;
+    color:var(--green);
+    letter-spacing:1px;
+  }
+  .live-badge .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--green);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  @keyframes blink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.25; }
+  }
+
+  .spider-btn{
+    width:44px; height:44px; border-radius:8px;
+    background:#eef2f5;
+    border:3px solid #05202e;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px;
+  }
+
+  /* ---------- Map ---------- */
+  .map-frame{
+    margin:0 10px;
+    border:5px solid #04405c;
+    border-radius:50%;
+    position:relative;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.08), transparent 45%),
+      radial-gradient(circle at 50% 50%, #10517a 0%, #0a2a44 70%, #071c30 100%);
+    overflow:hidden;
+    width:400px; height:400px;
+    margin-left:auto; margin-right:auto;
+    margin-top:6px;
+  }
+
+  .map-frame::before{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:50%;
+    background-image:
+      repeating-radial-gradient(circle at 50% 50%, transparent 0 38px, var(--map-line) 38px 39px),
+      repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg 14.9deg, var(--map-line) 14.9deg 15deg);
+    opacity:0.35;
+    animation: globeSpin 40s linear infinite;
+  }
+  @keyframes globeSpin{
+    to{ transform:rotate(360deg); }
+  }
+
+  .continent{
+    position:absolute;
+    background:#3e7a4a;
+    box-shadow: inset -4px -4px 0 rgba(0,0,0,0.15);
+  }
+  /* North America */
+  .c-na{ left:10%; top:16%; width:24%; height:20%;
+    clip-path: polygon(30% 0%, 70% 5%, 90% 20%, 100% 45%, 80% 60%, 60% 100%, 40% 90%, 20% 65%, 0% 40%, 10% 15%); }
+  /* South America */
+  .c-sa{ left:20%; top:48%; width:14%; height:26%;
+    clip-path: polygon(40% 0%, 80% 10%, 100% 35%, 75% 70%, 55% 100%, 30% 85%, 15% 50%, 20% 15%); }
+  /* Europe */
+  .c-eu{ left:44%; top:16%; width:13%; height:13%;
+    clip-path: polygon(20% 0%, 70% 0%, 100% 30%, 80% 60%, 90% 100%, 40% 90%, 10% 60%, 0% 25%); }
+  /* Africa */
+  .c-af{ left:44%; top:32%; width:17%; height:28%;
+    clip-path: polygon(30% 0%, 70% 5%, 90% 25%, 100% 50%, 75% 100%, 50% 95%, 25% 70%, 10% 35%); }
+  /* Asia */
+  .c-as{ left:58%; top:14%; width:28%; height:28%;
+    clip-path: polygon(10% 10%, 40% 0%, 75% 8%, 100% 25%, 90% 50%, 70% 70%, 45% 100%, 25% 80%, 5% 45%); }
+  /* Australia */
+  .c-au{ left:68%; top:60%; width:14%; height:11%;
+    clip-path: polygon(15% 20%, 55% 0%, 90% 15%, 100% 55%, 70% 100%, 30% 90%, 0% 55%); }
+
+  .label{
+    position:absolute;
+    font-size:11.5px;
+    color:rgba(223,243,251,0.4);
+    letter-spacing:0.3px;
+  }
+
+  .mapcredit{
+    position:absolute; left:14px; bottom:10px;
+    font-size:15px; color:rgba(223,243,251,0.55);
+  }
+
+  /* Spider pin using emoji glyph */
+  .pin{
+    position:absolute;
+    width:32px; height:32px;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    border:2px solid #04202f;
+    font-size:16px;
+    animation: pinPulse 2.4s ease-in-out infinite;
+    z-index:2;
+  }
+  @keyframes pinPulse{
+    0%,100%{ transform:translate(-50%,-50%) scale(1); }
+    50%{ transform:translate(-50%,-50%) scale(1.18); }
+  }
+  .pin.red{ background:var(--red); animation-delay:0s; }
+  .pin.green{ background:var(--green); animation-delay:0.6s; }
+  .pin.blue{ background:var(--blue); animation-delay:1.2s; }
+  .pin.white{ background:#eef2f5; }
+  .pin.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+
+  .pin::after{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:50%;
+    border:2px solid currentColor;
+    opacity:0;
+    animation: ringOut 2.4s ease-out infinite;
+  }
+  .pin.red::after{ color:var(--red); animation-delay:0s; }
+  .pin.green::after{ color:var(--green); animation-delay:0.6s; }
+  .pin.blue::after{ color:var(--blue); animation-delay:1.2s; }
+  @keyframes ringOut{
+    0%{ transform:scale(1); opacity:0.8; }
+    100%{ transform:scale(2.6); opacity:0; }
+  }
+
+  /* mini web radar, bottom right of map */
+  .radar{
+    position:absolute; left:50%; bottom:2%;
+    transform:translateX(-50%);
+    width:70px; height:70px;
+  }
+  .radar svg{ width:100%; height:100%; opacity:0.9; }
+  .radar .rr{ fill:none; stroke:var(--frame-light); stroke-width:1; opacity:0.7; }
+  .radar .rs{ stroke:var(--frame-light); stroke-width:1; opacity:0.6; }
+  .radar .dot-r{ fill:var(--red); }
+  .radar .dot-g{ fill:var(--green); }
+  .radar .sweep-line{
+    stroke:var(--amber); stroke-width:2;
+    transform-origin:50px 50px;
+    animation: sweepRotate 3s linear infinite;
+  }
+  @keyframes sweepRotate{
+    to{ transform:rotate(360deg); }
+  }
+  .radar-icon{
+    position:absolute;
+    width:26px; height:26px; border-radius:50%;
+    background:#052233; border:2px solid var(--frame-light);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .radar-icon.globe{ right:-6px; top:34px; }
+  .radar-icon.target{ right:16px; bottom:-8px; }
+  .radar-icon svg{ width:14px; height:14px; }
+
+  .foot-links{
+    position:absolute; left:0; right:0; bottom:0;
+    display:flex; gap:6px; padding:6px 8px;
+    font-size:11px; color:#0a2a3c;
+  }
+  .foot-links span{
+    background:rgba(223,243,251,0.75);
+    padding:2px 8px; border-radius:2px;
+  }
+
+  /* ---------- Bottom bar ---------- */
+  .bottom-bar{
+    display:flex; align-items:center; gap:10px;
+    padding:14px 14px 10px;
+  }
+  .mascot{
+    width:50px; height:50px; border-radius:10px;
+    background:var(--red);
+    border:3px solid #05202e;
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px;
+  }
+  .share-plate{
+    flex:1;
+    background:#04202f;
+    border:3px solid var(--frame-light);
+    border-radius:6px;
+    padding:10px 14px;
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    color:var(--ink);
+    letter-spacing:1px;
+    text-align:center;
+  }
+  .audio-btn{
+    width:50px; height:50px; border-radius:10px;
+    background:var(--green);
+    border:3px solid #05202e;
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .cta-row{
+    display:flex; gap:10px;
+    padding:0 14px 18px;
+  }
+  .cta{
+    flex:1;
+    background:var(--amber);
+    border:3px solid #05202e;
+    border-radius:4px;
+    text-align:center;
+    padding:12px 6px;
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    color:#3a1c00;
+    letter-spacing:0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="menu-btn"><div></div></div>
+    <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE</div></div>
+    <div class="spider-btn">🕸️</div>
+  </div>
+
+  <div class="map-frame">
+    <div class="continent c-na"></div>
+    <div class="continent c-sa"></div>
+    <div class="continent c-eu"></div>
+    <div class="continent c-af"></div>
+    <div class="continent c-as"></div>
+    <div class="continent c-au"></div>
+
+    <div class="label" style="left:12%; top:18%;">N. America</div>
+    <div class="label" style="left:22%; top:52%;">S. America</div>
+    <div class="label" style="left:46%; top:14%;">Europe</div>
+    <div class="label" style="left:47%; top:36%;">Africa</div>
+    <div class="label" style="left:62%; top:18%;">Asia</div>
+    <div class="label" style="left:70%; top:64%;">Australia</div>
+
+    <!-- pins scattered across the world -->
+    <div class="pin white glow" style="left:22%; top:26%;">🕸️</div>
+    <div class="pin red" style="left:16%; top:22%;">🕸️</div>
+    <div class="pin red" style="left:27%; top:32%;">🕸️</div>
+    <div class="pin green" style="left:25%; top:58%;">🕸️</div>
+    <div class="pin blue" style="left:28%; top:64%;">🕸️</div>
+
+    <div class="pin red glow" style="left:50%; top:20%;">🕸️</div>
+    <div class="pin green" style="left:54%; top:24%;">🕸️</div>
+    <div class="pin red" style="left:51%; top:40%;">🕸️</div>
+    <div class="pin blue" style="left:56%; top:46%;">🕸️</div>
+
+    <div class="pin red" style="left:66%; top:24%;">🕸️</div>
+    <div class="pin green" style="left:74%; top:20%;">🕸️</div>
+    <div class="pin red" style="left:76%; top:32%;">🕸️</div>
+    <div class="pin blue" style="left:70%; top:38%;">🕸️</div>
+    <div class="pin green" style="left:64%; top:48%;">🕸️</div>
+
+    <div class="pin red" style="left:76%; top:66%;">🕸️</div>
+    <div class="pin blue" style="left:80%; top:70%;">🕸️</div>
+
+    <div class="radar">
+      <svg viewBox="0 0 100 100">
+        <polygon class="rr" points="50,10 82,25 90,55 68,85 32,85 10,55 18,25"/>
+        <polygon class="rr" points="50,25 70,34 76,54 62,72 38,72 24,54 30,34"/>
+        <polygon class="rr" points="50,38 60,42 63,52 56,62 44,62 37,52 40,42"/>
+        <line class="rs" x1="50" y1="50" x2="50" y2="10"/>
+        <line class="rs" x1="50" y1="50" x2="82" y2="25"/>
+        <line class="rs" x1="50" y1="50" x2="90" y2="55"/>
+        <line class="rs" x1="50" y1="50" x2="68" y2="85"/>
+        <line class="rs" x1="50" y1="50" x2="32" y2="85"/>
+        <line class="rs" x1="50" y1="50" x2="10" y2="55"/>
+        <line class="rs" x1="50" y1="50" x2="18" y2="25"/>
+        <circle class="dot-r" cx="30" cy="24" r="3"/>
+        <circle class="dot-r" cx="24" cy="30" r="3"/>
+        <circle class="dot-g" cx="26" cy="62" r="3"/>
+        <circle class="dot-g" cx="34" cy="70" r="3"/>
+        <line class="sweep-line" x1="50" y1="50" x2="50" y2="10"/>
+      </svg>
+      <div class="radar-icon globe">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#dff3fb" stroke-width="1.5"/><line x1="3" y1="12" x2="21" y2="12" stroke="#dff3fb" stroke-width="1.2"/><path d="M12,3 C7,7 7,17 12,21 C17,17 17,7 12,3" fill="none" stroke="#dff3fb" stroke-width="1.2"/></svg>
+      </div>
+      <div class="radar-icon target">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#dff3fb" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#dff3fb"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="mascot">🕸️</div>
+    <div class="share-plate">SHARE YOUR WEB</div>
+    <div class="audio-btn" id="audioBtn" style="cursor:pointer;">
+      <svg id="audioIcon" viewBox="0 0 24 24"><path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><path d="M16,8 C19,10.5 19,13.5 16,16" fill="none" stroke="#052233" stroke-width="1.8"/></svg>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <div class="cta">LIVE MAP</div>
+    <div class="cta">TRACK NOW</div>
+  </div>
+
+</div>
+
+<script>
+  let audioCtx = null;
+  let soundOn = false;
+  let beepInterval = null;
+
+  function beep(){
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+  }
+
+  document.getElementById('audioBtn').addEventListener('click', function(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    soundOn = !soundOn;
+    const icon = document.getElementById('audioIcon');
+
+    if(soundOn){
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      beep();
+      beepInterval = setInterval(beep, 1500);
+      icon.innerHTML = '<path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><path d="M16,7 C20,10.5 20,13.5 16,17" fill="none" stroke="#052233" stroke-width="1.8"/><path d="M19,4 C25,9 25,15 19,20" fill="none" stroke="#052233" stroke-width="1.8"/>';
+    } else {
+      clearInterval(beepInterval);
+      icon.innerHTML = '<path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><line x1="16" y1="7" x2="22" y2="17" stroke="#052233" stroke-width="1.8"/><line x1="22" y1="7" x2="16" y2="17" stroke="#052233" stroke-width="1.8"/>';
+    }
+  });
+
+  let voices = [];
+  function loadVoices(){ voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; }
+  if('speechSynthesis' in window){
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function speak(text){
+    if(!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    u.pitch = 0.9;
+    u.volume = 1;
+    if(voices.length){
+      const enVoice = voices.find(function(v){ return v.lang && v.lang.indexOf('en') === 0; });
+      if(enVoice) u.voice = enVoice;
+    }
+    window.speechSynthesis.speak(u);
+  }
+
+  document.querySelectorAll('.pin').forEach(function(pin){
+    pin.style.cursor = 'pointer';
+    pin.addEventListener('click', function(e){
+      e.stopPropagation();
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      beep();
+      speak('Web signal detected');
+      pin.style.transform = 'translate(-50%,-50%) scale(1.5)';
+      setTimeout(function(){ pin.style.transform = ''; }, 200);
+    });
+  });
+</script>
+
+</body>
+</html>
