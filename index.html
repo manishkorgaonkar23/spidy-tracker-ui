@@ -143,8 +143,11 @@
     background:#0a2a44;
   }
   /* dim/tint the OSM tiles to match app palette */
-  #leafletMap .leaflet-tile-pane{
-    filter: brightness(0.55) saturate(1.3) hue-rotate(-6deg) contrast(1.1);
+  #leafletMap .leaflet-baseTiles-pane{
+    filter: brightness(0.6) saturate(1.3) hue-rotate(-6deg) contrast(1.15);
+  }
+  #leafletMap .leaflet-labelsPane-pane{
+    filter: brightness(1.05) contrast(1.1);
   }
   .leaflet-control-attribution{
     background:rgba(5,32,46,0.75) !important;
@@ -459,10 +462,24 @@
     worldCopyJump: true
   }).setView([20, 10], 2);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  map.createPane('baseTiles');
+  map.getPane('baseTiles').style.zIndex = 200;
+  map.createPane('labelsPane');
+  map.getPane('labelsPane').style.zIndex = 400;
+  map.getPane('labelsPane').style.pointerEvents = 'none';
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd',
-    maxZoom: 19
+    maxZoom: 19,
+    pane: 'baseTiles'
+  }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
+    pane: 'labelsPane'
   }).addTo(map);
 
   setTimeout(function(){ map.invalidateSize(); }, 300);
