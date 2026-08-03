@@ -423,7 +423,7 @@
 
   <div class="header">
     <div class="menu-btn"><div></div></div>
-    <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE</div></div>
+    <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE <span id="visitorCount">0</span></div></div>
     <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">☀️</button>
     <div class="spider-btn" id="dropBtn">
       🕸️
@@ -511,6 +511,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/globe.gl@2.45.0/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   /* ---------- Leaflet real world map ---------- */
   const map = L.map('leafletMap', {
@@ -941,6 +942,60 @@
     speak('New signal detected');
     showToast('New sighting logged');
   });
+</script>
+
+
+<script>
+/* ---------- SUPABASE LIVE VISITORS ---------- */
+(function(){
+  const SUPABASE_URL = 'https://wlxsoxwyoczpcxkajgkf.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
+
+  if(!window.supabase) return;
+
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const idKey = 'spidy-visitor-id';
+  let visitorId = localStorage.getItem(idKey);
+  if(!visitorId){
+    visitorId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
+    localStorage.setItem(idKey, visitorId);
+  }
+
+  const countEl = document.getElementById('visitorCount');
+  function setCount(n){ if(countEl) countEl.textContent = String(n || 0); }
+
+  async function register(){
+    const row = { visitor_id: visitorId, last_seen: new Date().toISOString() };
+    let r = await client.from('live_visitors').upsert(row, {onConflict:'visitor_id'});
+    if(r.error) console.warn('SPIDY live visitor:', r.error.message);
+  }
+
+  async function refresh(){
+    const cutoff = new Date(Date.now() - 45000).toISOString();
+    const r = await client.from('live_visitors')
+      .select('visitor_id', {count:'exact', head:true})
+      .gte('last_seen', cutoff);
+    if(!r.error) setCount(r.count);
+  }
+
+  async function heartbeat(){
+    const r = await client.from('live_visitors')
+      .update({last_seen:new Date().toISOString()})
+      .eq('visitor_id', visitorId);
+    if(r.error) await register();
+    refresh();
+  }
+
+  client.channel('spidy-live-visitors')
+    .on('postgres_changes',
+      {event:'*', schema:'public', table:'live_visitors'},
+      refresh
+    ).subscribe();
+
+  register().then(refresh);
+  setInterval(heartbeat, 20000);
+  setInterval(refresh, 10000);
+})();
 </script>
 
 </body>
