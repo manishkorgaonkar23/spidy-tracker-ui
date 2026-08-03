@@ -81,6 +81,51 @@
     border:3px solid #05202e;
     display:flex; align-items:center; justify-content:center;
     font-size:24px;
+    position:relative;
+    cursor:pointer;
+    z-index:6;
+  }
+
+  .drop-thread{
+    position:absolute;
+    left:50%;
+    top:100%;
+    width:1.5px;
+    background:rgba(223,243,251,0.6);
+    height:0;
+    transform:translateX(-50%);
+    pointer-events:none;
+  }
+  .drop-thread.animate{
+    animation: threadDrop 1.8s ease-in-out forwards;
+  }
+  @keyframes threadDrop{
+    0%{ height:0; }
+    45%{ height:170px; }
+    75%{ height:170px; }
+    100%{ height:0; }
+  }
+
+  .drop-spider{
+    position:absolute;
+    left:50%;
+    top:100%;
+    font-size:22px;
+    transform:translate(-50%, 0);
+    pointer-events:none;
+    opacity:0;
+  }
+  .drop-spider.animate{
+    animation: spiderDrop 1.8s ease-in-out forwards;
+  }
+  @keyframes spiderDrop{
+    0%{ top:100%; opacity:0; }
+    10%{ opacity:1; }
+    45%{ top:calc(100% + 170px); opacity:1; }
+    55%{ top:calc(100% + 155px); }
+    62%{ top:calc(100% + 170px); }
+    75%{ top:calc(100% + 170px); opacity:1; }
+    100%{ top:100%; opacity:0; }
   }
 
   /* ---------- Map ---------- */
@@ -274,6 +319,52 @@
     color:#3a1c00;
     letter-spacing:0.5px;
   }
+
+  /* ---------- Web spread overlay ---------- */
+  .web-overlay{
+    position:fixed;
+    inset:0;
+    z-index:40;
+    pointer-events:none;
+    opacity:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .web-overlay.animate{
+    animation: webOverlayFade 1.6s ease-out forwards;
+  }
+  @keyframes webOverlayFade{
+    0%{ opacity:0; }
+    12%{ opacity:1; }
+    70%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+  #webSvg{
+    width:100%; height:100%;
+    transform: scale(0);
+    transform-origin: 50% 100%;
+  }
+  .web-overlay.animate #webSvg{
+    animation: webScaleUp 1.6s cubic-bezier(0.2,0.8,0.3,1) forwards;
+  }
+  @keyframes webScaleUp{
+    0%{ transform: scale(0); }
+    60%{ transform: scale(1.15); }
+    80%{ transform: scale(1); }
+    100%{ transform: scale(1); }
+  }
+  .web-spoke{
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    opacity: 0.85;
+  }
+  .web-ring{
+    fill:none;
+    stroke: var(--ink);
+    stroke-width: 0.4;
+    opacity: 0.7;
+  }
 </style>
 </head>
 <body>
@@ -283,7 +374,11 @@
   <div class="header">
     <div class="menu-btn"><div></div></div>
     <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE</div></div>
-    <div class="spider-btn">🕸️</div>
+    <div class="spider-btn" id="dropBtn">
+      🕸️
+      <div class="drop-thread" id="dropThread"></div>
+      <div class="drop-spider" id="dropSpider">🕷️</div>
+    </div>
   </div>
 
   <div class="map-frame">
@@ -350,16 +445,45 @@
   </div>
 
   <div class="bottom-bar">
-    <div class="mascot">🕸️</div>
-    <div class="share-plate">SHARE YOUR WEB</div>
+    <div class="mascot" id="mascotBtn" style="cursor:pointer;">🕸️</div>
+    <div class="share-plate" id="shareBtn" style="cursor:pointer;">SHARE YOUR WEB</div>
     <div class="audio-btn" id="audioBtn" style="cursor:pointer;">
       <svg id="audioIcon" viewBox="0 0 24 24"><path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><path d="M16,8 C19,10.5 19,13.5 16,16" fill="none" stroke="#052233" stroke-width="1.8"/></svg>
     </div>
   </div>
 
   <div class="cta-row">
-    <div class="cta">LIVE MAP</div>
-    <div class="cta">TRACK NOW</div>
+    <div class="cta" id="liveMapBtn" style="cursor:pointer;">LIVE MAP</div>
+    <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
+  </div>
+
+  <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
+
+  <div id="webOverlay" class="web-overlay">
+    <svg id="webSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+      <line class="web-spoke" x1="50" y1="50" x2="50" y2="-30"/>
+      <line class="web-spoke" x1="50" y1="50" x2="78" y2="-22"/>
+      <line class="web-spoke" x1="50" y1="50" x2="107" y2="7"/>
+      <line class="web-spoke" x1="50" y1="50" x2="122" y2="28"/>
+      <line class="web-spoke" x1="50" y1="50" x2="130" y2="50"/>
+      <line class="web-spoke" x1="50" y1="50" x2="122" y2="72"/>
+      <line class="web-spoke" x1="50" y1="50" x2="107" y2="93"/>
+      <line class="web-spoke" x1="50" y1="50" x2="78" y2="122"/>
+      <line class="web-spoke" x1="50" y1="50" x2="50" y2="130"/>
+      <line class="web-spoke" x1="50" y1="50" x2="22" y2="122"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-7" y2="93"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-22" y2="72"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-30" y2="50"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-22" y2="28"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-7" y2="7"/>
+      <line class="web-spoke" x1="50" y1="50" x2="22" y2="-22"/>
+      <polygon class="web-ring" points="50,5 71,10 86,14 96,26 100,50 96,74 86,86 71,96 50,100 29,96 14,86 4,74 0,50 4,26 14,14 29,10"/>
+      <polygon class="web-ring" points="50,15 79,26 90,50 79,74 50,85 21,74 10,50 21,26"/>
+      <polygon class="web-ring" points="50,24 68,32 76,50 68,68 50,76 32,68 24,50 32,32"/>
+      <polygon class="web-ring" points="50,32 66,38 72,50 66,62 50,68 34,62 28,50 34,38"/>
+      <polygon class="web-ring" points="50,40 58,44 60,50 58,56 50,60 42,56 40,50 42,44"/>
+      <polygon class="web-ring" points="50,48 54,49 55,50 54,51 50,52 46,51 45,50 46,49"/>
+    </svg>
   </div>
 
 </div>
@@ -433,6 +557,130 @@
       pin.style.transform = 'translate(-50%,-50%) scale(1.5)';
       setTimeout(function(){ pin.style.transform = ''; }, 200);
     });
+  });
+
+  /* ---------- Header spider drop animation ---------- */
+  document.getElementById('dropBtn').addEventListener('click', function(){
+    const thread = document.getElementById('dropThread');
+    const spider = document.getElementById('dropSpider');
+
+    thread.classList.remove('animate');
+    spider.classList.remove('animate');
+    void thread.offsetWidth; // restart animation
+    void spider.offsetWidth;
+
+    thread.classList.add('animate');
+    spider.classList.add('animate');
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    speak('Web signal detected');
+
+    setTimeout(function(){
+      thread.classList.remove('animate');
+      spider.classList.remove('animate');
+    }, 1900);
+  });
+
+  document.getElementById('mascotBtn').addEventListener('click', function(){
+    const overlay = document.getElementById('webOverlay');
+    overlay.classList.remove('animate');
+    void overlay.offsetWidth;
+    overlay.classList.add('animate');
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    showToast('Web spread across the grid');
+
+    setTimeout(function(){
+      overlay.classList.remove('animate');
+    }, 1650);
+  });
+
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(function(){
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2200);
+  }
+
+  /* ---------- SHARE YOUR WEB ---------- */
+  document.getElementById('shareBtn').addEventListener('click', function(){
+    const shareData = {
+      title: 'Spidy Tracker',
+      text: 'Check out my Spidy Tracker — live web signal map!',
+      url: window.location.href
+    };
+    if(navigator.share){
+      navigator.share(shareData).catch(function(){});
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(window.location.href).then(function(){
+        showToast('Link copied!');
+      }).catch(function(){
+        showToast('Could not copy link');
+      });
+    } else {
+      showToast(window.location.href);
+    }
+  });
+
+  /* ---------- LIVE MAP: flash sweep + all pins ---------- */
+  document.getElementById('liveMapBtn').addEventListener('click', function(){
+    beep();
+    showToast('Scanning global grid...');
+    document.querySelectorAll('.pin').forEach(function(pin, i){
+      setTimeout(function(){
+        pin.style.transform = 'translate(-50%,-50%) scale(1.4)';
+        setTimeout(function(){ pin.style.transform = ''; }, 180);
+      }, i * 80);
+    });
+  });
+
+  /* ---------- TRACK NOW: drop a new random pin ---------- */
+  const pinColors = ['red','green','blue'];
+  document.getElementById('trackNowBtn').addEventListener('click', function(){
+    const mapFrame = document.querySelector('.map-frame');
+    const rect = mapFrame.getBoundingClientRect();
+
+    // random point within the circular globe
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * 42; // percent, keep inside circle
+    const leftPct = 50 + radius * Math.cos(angle);
+    const topPct = 50 + radius * Math.sin(angle);
+
+    const color = pinColors[Math.floor(Math.random() * pinColors.length)];
+    const newPin = document.createElement('div');
+    newPin.className = 'pin ' + color;
+    newPin.style.left = leftPct + '%';
+    newPin.style.top = topPct + '%';
+    newPin.style.fontSize = '0px';
+    newPin.textContent = '🕸️';
+    mapFrame.appendChild(newPin);
+
+    requestAnimationFrame(function(){
+      newPin.style.transition = 'font-size 0.3s ease-out';
+      newPin.style.fontSize = '16px';
+    });
+
+    newPin.style.cursor = 'pointer';
+    newPin.addEventListener('click', function(e){
+      e.stopPropagation();
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      beep();
+      speak('Web signal detected');
+      newPin.style.transform = 'translate(-50%,-50%) scale(1.5)';
+      setTimeout(function(){ newPin.style.transform = ''; }, 200);
+    });
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    speak('New signal detected');
+    showToast('New sighting logged');
   });
 </script>
 
