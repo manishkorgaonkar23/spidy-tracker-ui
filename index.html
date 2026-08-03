@@ -10,6 +10,9 @@
 
   :root{
     --theme-bg: #04202f;
+    --theme-panel: #052233;
+    --theme-border: #1ea3c9;
+    --theme-text: #dff3fb;
     --theme-map-bg: #0a2a44;
     --theme-map-filter: var(--theme-map-filter);
     --frame: #0f6e8c;
@@ -49,7 +52,7 @@
 
   .title-plate{
     flex:1; margin:0 10px;
-    background:#052233;
+    background:var(--theme-panel);
     border:3px solid var(--frame-light);
     border-radius:4px;
     text-align:center;
@@ -132,6 +135,60 @@
     100%{ top:100%; opacity:0; }
   }
 
+  .theme-btn{
+    width:44px; height:44px; border-radius:8px;
+    background:var(--theme-panel);
+    border:3px solid #05202e;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; cursor:pointer; z-index:6;
+    color:var(--theme-text);
+  }
+
+  body.light-mode{
+    --theme-bg:#f3f7fa;
+    --theme-panel:#ffffff;
+    --theme-border:#0f6e8c;
+    --theme-text:#102a38;
+    --theme-map-bg:#dbe8ee;
+    --theme-map-filter:brightness(1) saturate(0.75) contrast(1);
+  }
+
+  body.light-mode .title-plate,
+  body.light-mode .share-plate,
+  body.light-mode .leaflet-control-zoom a,
+  body.light-mode .radar-icon{
+    color:var(--theme-text);
+  }
+
+  body.light-mode .leaflet-control-zoom a{
+    background:#ffffff !important;
+    border-color:#9bb3bf !important;
+  }
+
+  body.light-mode .leaflet-control-attribution{
+    background:rgba(255,255,255,0.85) !important;
+    color:#35505d !important;
+  }
+
+  body.light-mode .leaflet-control-attribution a{
+    color:#0f6e8c !important;
+  }
+
+  body.light-mode .spider-btn,
+  body.light-mode .theme-btn{
+    background:#ffffff;
+  }
+
+  body.light-mode #toast{
+    background:#ffffff !important;
+    color:#102a38 !important;
+    border-color:#0f6e8c !important;
+  }
+
+  body.light-mode .theme-btn{
+    border-color:#17323e;
+  }
+
   /* ---------- Map ---------- */
   .map-frame{
     margin:0 10px;
@@ -143,7 +200,7 @@
   }
   #leafletMap{
     width:100%; height:100%;
-    background:#0a2a44;
+    background:var(--theme-map-bg);
   }
   /* dim/tint the OSM tiles to match app palette */
   #leafletMap .leaflet-baseTiles-pane{
@@ -182,55 +239,6 @@
   .mapcredit{
     position:absolute; left:14px; bottom:10px;
     font-size:15px; color:rgba(223,243,251,0.55);
-  }
-
-  .theme-btn{
-    width:44px;height:44px;border-radius:8px;background:#eef2f5;
-    border:3px solid #05202e;display:flex;align-items:center;
-    justify-content:center;font-size:20px;cursor:pointer;flex:0 0 auto;
-  }
-
-  body.light-mode{
-    --theme-bg:#eef4f7;
-    --theme-map-bg:#dbe8ee;
-    --theme-map-filter:brightness(1) saturate(.75) contrast(1);
-  }
-
-  body.light-mode .title-plate,
-  body.light-mode .share-plate{background:#fff;color:#102a38;}
-
-  body.light-mode .theme-btn,
-  body.light-mode .spider-btn{background:#fff;}
-
-  body.light-mode .leaflet-control-zoom a{
-    background:#fff !important;color:#102a38 !important;
-    border-color:#9bb3bf !important;
-  }
-
-  body.light-mode .leaflet-control-attribution{
-    background:rgba(255,255,255,.88) !important;color:#35505d !important;
-  }
-
-  #globeMap{
-    position:absolute;inset:0;display:none;background:var(--theme-map-bg);z-index:2;
-  }
-
-  .view3d-btn{
-    position:absolute;top:10px;left:10px;z-index:1001;
-    padding:8px 12px;border:3px solid #05202e;border-radius:5px;
-    background:var(--amber);color:#3a1c00;
-    font-family:'Press Start 2P',monospace;font-size:8px;cursor:pointer;
-  }
-
-  .view-mode-badge{
-    position:absolute;top:12px;left:60px;z-index:1001;
-    padding:5px 8px;border:2px solid var(--frame-light);border-radius:4px;
-    background:rgba(5,34,51,.88);color:var(--ink);
-    font-family:'Press Start 2P',monospace;font-size:7px;pointer-events:none;
-  }
-
-  body.light-mode .view-mode-badge{
-    background:rgba(255,255,255,.9);color:#102a38;
   }
 
   /* Spider pin marker (Leaflet divIcon wrapper + inner animated span) */
@@ -303,7 +311,7 @@
   .radar-icon{
     position:absolute;
     width:26px; height:26px; border-radius:50%;
-    background:#052233; border:2px solid var(--frame-light);
+    background:var(--theme-panel); border:2px solid var(--frame-light);
     display:flex; align-items:center; justify-content:center;
   }
   .radar-icon.globe{ right:-6px; top:34px; }
@@ -335,7 +343,7 @@
   }
   .share-plate{
     flex:1;
-    background:#04202f;
+    background:var(--theme-bg);
     border:3px solid var(--frame-light);
     border-radius:6px;
     padding:10px 14px;
@@ -416,6 +424,16 @@
     opacity: 0.7;
   }
 </style>
+
+<style id="spidy-custom-marker-css">
+.spidy-custom-marker{
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.72);border:1.5px solid rgba(255,255,255,.65);
+  border-radius:50%;box-shadow:0 2px 12px rgba(0,0,0,.45);
+}
+.spidy-custom-marker img{width:30px;height:30px;object-fit:contain;display:block}
+</style>
+
 </head>
 <body>
 
@@ -423,8 +441,10 @@
 
   <div class="header">
     <div class="menu-btn"><div></div></div>
-    <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE <span id="visitorCount">0</span></div></div>
-    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">☀️</button>
+    <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE</div></div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">
+      ☀️
+    </button>
     <div class="spider-btn" id="dropBtn">
       🕸️
       <div class="drop-thread" id="dropThread"></div>
@@ -434,9 +454,6 @@
 
   <div class="map-frame">
     <div id="leafletMap"></div>
-    <div id="globeMap"></div>
-    <button id="view3dBtn" class="view3d-btn" type="button">3D</button>
-    <div id="viewModeBadge" class="view-mode-badge">2D MAP</div>
 
     <div class="radar" style="z-index:1000;">
       <svg viewBox="0 0 100 100">
@@ -478,7 +495,7 @@
     <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
   </div>
 
-  <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
+  <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:var(--theme-panel); border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
 
   <div id="webOverlay" class="web-overlay">
     <svg id="webSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
@@ -510,8 +527,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/globe.gl@2.45.0/dist/globe.gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   /* ---------- Leaflet real world map ---------- */
   const map = L.map('leafletMap', {
@@ -526,45 +541,21 @@
   map.getPane('labelsPane').style.zIndex = 400;
   map.getPane('labelsPane').style.pointerEvents = 'none';
 
-  const darkBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
+    subdomains: 'abcd',
+    maxZoom: 19,
+    pane: 'baseTiles'
   }).addTo(map);
 
-  const darkLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
+    subdomains: 'abcd',
+    maxZoom: 19,
+    pane: 'labelsPane'
   }).addTo(map);
 
-  const lightBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
-  });
-
-  const lightLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
-  });
-
-  function setMapTheme(light){
-    if(light){
-      if(map.hasLayer(darkBaseTiles)) map.removeLayer(darkBaseTiles);
-      if(map.hasLayer(darkLabels)) map.removeLayer(darkLabels);
-      lightBaseTiles.addTo(map);
-      lightLabels.addTo(map);
-    }else{
-      if(map.hasLayer(lightBaseTiles)) map.removeLayer(lightBaseTiles);
-      if(map.hasLayer(lightLabels)) map.removeLayer(lightLabels);
-      darkBaseTiles.addTo(map);
-      darkLabels.addTo(map);
-    }
-    map.invalidateSize();
-  }
-
-  setTimeout(function(){
-    map.invalidateSize();
-    if(document.body.classList.contains('light-mode')) setMapTheme(true);
-  }, 300);
+  setTimeout(function(){ map.invalidateSize(); }, 300);
 
   const sightings = [
     { lat: 40.71, lng: -74.00, color: 'white', label: 'New York', glow: true },
@@ -660,107 +651,37 @@
 
 </script>
 <script>
-  /* ---------- 3D Globe ---------- */
-  let globe = null;
-  let is3D = false;
-
-  const globeEl = document.getElementById('globeMap');
-  const view3dBtn = document.getElementById('view3dBtn');
-  const viewModeBadge = document.getElementById('viewModeBadge');
-
-  function initGlobe(){
-    if(globe) return;
-
-    const data = sightings.map(function(s){
-      return {
-        lat:s.lat, lng:s.lng,
-        label:s.label,
-        color:s.color === 'red' ? '#e4453f' : (s.color === 'amber' ? '#ffb020' : '#4fa8d8')
-      };
-    });
-
-    globe = Globe()(globeEl)
-      .backgroundColor('#0a2a44')
-      .showAtmosphere(true)
-      .atmosphereColor('#4fa8d8')
-      .atmosphereAltitude(0.12)
-      .pointsData(data)
-      .pointLat('lat')
-      .pointLng('lng')
-      .pointColor('color')
-      .pointRadius(0.55)
-      .pointAltitude(0.025)
-      .pointLabel(function(d){ return d.label + ' — signal'; })
-      .onPointClick(function(d){
-        if(typeof beep === 'function') beep();
-        if(typeof speak === 'function') speak('Web signal detected');
-        if(typeof showToast === 'function') showToast(d.label + ' — signal detected');
-      });
-
-    globe.controls().enableDamping = true;
-    globe.controls().dampingFactor = 0.08;
-    globe.controls().autoRotate = false;
-    resizeGlobe();
-  }
-
-  function resizeGlobe(){
-    if(!globe) return;
-    globe.width(globeEl.clientWidth);
-    globe.height(globeEl.clientHeight);
-  }
-
-  function updateGlobeTheme(){
-    if(!globe) return;
-    const light = document.body.classList.contains('light-mode');
-    globe.backgroundColor(light ? '#dbe8ee' : '#0a2a44');
-    globe.atmosphereColor(light ? '#0f6e8c' : '#4fa8d8');
-  }
-
-  function show3D(){
-    initGlobe();
-    is3D = true;
-    document.getElementById('leafletMap').style.display = 'none';
-    globeEl.style.display = 'block';
-    view3dBtn.textContent = '2D';
-    viewModeBadge.textContent = '3D GLOBE';
-    updateGlobeTheme();
-    resizeGlobe();
-  }
-
-  function show2D(){
-    is3D = false;
-    globeEl.style.display = 'none';
-    document.getElementById('leafletMap').style.display = 'block';
-    view3dBtn.textContent = '3D';
-    viewModeBadge.textContent = '2D MAP';
-    setTimeout(function(){ map.invalidateSize(); }, 60);
-  }
-
-  view3dBtn.addEventListener('click', function(){
-    if(is3D) show2D(); else show3D();
-  });
-
-  window.addEventListener('resize', resizeGlobe);
-</script>
-
-<script>
+  /* ---------- Theme toggle ---------- */
   (function(){
-    const btn=document.getElementById('themeBtn');
-    const saved=localStorage.getItem('spidy-theme');
-    if(saved==='light') document.body.classList.add('light-mode');
-    function sync(){
-      const light=document.body.classList.contains('light-mode');
-      btn.textContent=light?'🌙':'☀️';
-      if(typeof setMapTheme==='function') setMapTheme(light);
-      if(typeof updateGlobeTheme==='function') updateGlobeTheme();
+    const themeBtn = document.getElementById('themeBtn');
+    const savedTheme = localStorage.getItem('spidy-theme');
+
+    if(savedTheme === 'light'){
+      document.body.classList.add('light-mode');
     }
-    sync();
-    btn.addEventListener('click',function(){
-      const light=document.body.classList.toggle('light-mode');
-      localStorage.setItem('spidy-theme',light?'light':'dark');
-      sync();
+
+    function updateThemeButton(){
+      const light = document.body.classList.contains('light-mode');
+      themeBtn.textContent = light ? '🌙' : '☀️';
+      themeBtn.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode');
+      themeBtn.title = light ? 'Switch to dark mode' : 'Switch to light mode';
+    }
+
+    updateThemeButton();
+
+    themeBtn.addEventListener('click', function(){
+      const light = document.body.classList.toggle('light-mode');
+      localStorage.setItem('spidy-theme', light ? 'light' : 'dark');
+      updateThemeButton();
+
+      // Recalculate Leaflet rendering after the palette changes.
+      setTimeout(function(){ map.invalidateSize(); }, 50);
+      if(typeof showToast === 'function'){
+        showToast(light ? 'Light mode enabled' : 'Dark mode enabled');
+      }
     });
   })();
+
 </script>
 <script>
   let audioCtx = null;
@@ -945,57 +866,12 @@
 </script>
 
 
-<script>
-/* ---------- SUPABASE LIVE VISITORS ---------- */
-(function(){
-  const SUPABASE_URL = 'https://wlxsoxwyoczpcxkajgkf.supabase.co';
-  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
-
-  if(!window.supabase) return;
-
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-  const idKey = 'spidy-visitor-id';
-  let visitorId = localStorage.getItem(idKey);
-  if(!visitorId){
-    visitorId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
-    localStorage.setItem(idKey, visitorId);
-  }
-
-  const countEl = document.getElementById('visitorCount');
-  function setCount(n){ if(countEl) countEl.textContent = String(n || 0); }
-
-  async function register(){
-    const row = { visitor_id: visitorId, last_seen: new Date().toISOString() };
-    let r = await client.from('live_visitors').upsert(row, {onConflict:'visitor_id'});
-    if(r.error) console.warn('SPIDY live visitor:', r.error.message);
-  }
-
-  async function refresh(){
-    const cutoff = new Date(Date.now() - 45000).toISOString();
-    const r = await client.from('live_visitors')
-      .select('visitor_id', {count:'exact', head:true})
-      .gte('last_seen', cutoff);
-    if(!r.error) setCount(r.count);
-  }
-
-  async function heartbeat(){
-    const r = await client.from('live_visitors')
-      .update({last_seen:new Date().toISOString()})
-      .eq('visitor_id', visitorId);
-    if(r.error) await register();
-    refresh();
-  }
-
-  client.channel('spidy-live-visitors')
-    .on('postgres_changes',
-      {event:'*', schema:'public', table:'live_visitors'},
-      refresh
-    ).subscribe();
-
-  register().then(refresh);
-  setInterval(heartbeat, 20000);
-  setInterval(refresh, 10000);
-})();
+<script id="spidy-marker-helper">
+window.SPIDY_MARKER_IMAGE = 'spidy-marker.png';
+window.createSpidyMarkerHTML = function(){
+  return '<div class="spidy-custom-marker"><img src="' + window.SPIDY_MARKER_IMAGE +
+         '" alt="Spidy marker"></div>';
+};
 </script>
 
 </body>
