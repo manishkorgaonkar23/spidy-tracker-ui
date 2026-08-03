@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPIDY TRACKER — World</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
@@ -132,54 +133,38 @@
   .map-frame{
     margin:0 10px;
     border:5px solid #04405c;
-    border-radius:50%;
+    border-radius:8px;
     position:relative;
-    background:
-      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.08), transparent 45%),
-      radial-gradient(circle at 50% 50%, #10517a 0%, #0a2a44 70%, #071c30 100%);
     overflow:hidden;
-    width:400px; height:400px;
-    margin-left:auto; margin-right:auto;
-    margin-top:6px;
+    height:420px;
+  }
+  #leafletMap{
+    width:100%; height:100%;
+    background:#0a2a44;
+  }
+  /* dim/tint the OSM tiles to match app palette */
+  #leafletMap .leaflet-tile-pane{
+    filter: brightness(0.55) saturate(1.3) hue-rotate(-6deg) contrast(1.1);
+  }
+  .leaflet-control-attribution{
+    background:rgba(5,32,46,0.75) !important;
+    color:rgba(223,243,251,0.6) !important;
+    font-family:'VT323',monospace !important;
+    font-size:11px !important;
+  }
+  .leaflet-control-attribution a{ color:var(--frame-light) !important; }
+  .leaflet-control-zoom a{
+    background:#052233 !important;
+    color:var(--ink) !important;
+    border-color:rgba(255,255,255,0.15) !important;
   }
 
-  .map-frame::before{
-    content:"";
-    position:absolute; inset:0;
-    border-radius:50%;
-    background-image:
-      repeating-radial-gradient(circle at 50% 50%, transparent 0 38px, var(--map-line) 38px 39px),
-      repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg 14.9deg, var(--map-line) 14.9deg 15deg);
-    opacity:0.35;
-    animation: globeSpin 40s linear infinite;
+  .spider-marker{
+    font-size:20px;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.6));
+    text-align:center;
+    line-height:1;
   }
-  @keyframes globeSpin{
-    to{ transform:rotate(360deg); }
-  }
-
-  .continent{
-    position:absolute;
-    background:#3e7a4a;
-    box-shadow: inset -4px -4px 0 rgba(0,0,0,0.15);
-  }
-  /* North America */
-  .c-na{ left:10%; top:16%; width:24%; height:20%;
-    clip-path: polygon(30% 0%, 70% 5%, 90% 20%, 100% 45%, 80% 60%, 60% 100%, 40% 90%, 20% 65%, 0% 40%, 10% 15%); }
-  /* South America */
-  .c-sa{ left:20%; top:48%; width:14%; height:26%;
-    clip-path: polygon(40% 0%, 80% 10%, 100% 35%, 75% 70%, 55% 100%, 30% 85%, 15% 50%, 20% 15%); }
-  /* Europe */
-  .c-eu{ left:44%; top:16%; width:13%; height:13%;
-    clip-path: polygon(20% 0%, 70% 0%, 100% 30%, 80% 60%, 90% 100%, 40% 90%, 10% 60%, 0% 25%); }
-  /* Africa */
-  .c-af{ left:44%; top:32%; width:17%; height:28%;
-    clip-path: polygon(30% 0%, 70% 5%, 90% 25%, 100% 50%, 75% 100%, 50% 95%, 25% 70%, 10% 35%); }
-  /* Asia */
-  .c-as{ left:58%; top:14%; width:28%; height:28%;
-    clip-path: polygon(10% 10%, 40% 0%, 75% 8%, 100% 25%, 90% 50%, 70% 70%, 45% 100%, 25% 80%, 5% 45%); }
-  /* Australia */
-  .c-au{ left:68%; top:60%; width:14%; height:11%;
-    clip-path: polygon(15% 20%, 55% 0%, 90% 15%, 100% 55%, 70% 100%, 30% 90%, 0% 55%); }
 
   .label{
     position:absolute;
@@ -193,49 +178,59 @@
     font-size:15px; color:rgba(223,243,251,0.55);
   }
 
-  /* Spider pin using emoji glyph */
-  .pin{
-    position:absolute;
+  /* Spider pin marker (Leaflet divIcon wrapper + inner animated span) */
+  .pin-body{
+    position:relative;
     width:32px; height:32px;
-    transform:translate(-50%,-50%);
     border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     border:2px solid #04202f;
     font-size:16px;
     animation: pinPulse 2.4s ease-in-out infinite;
-    z-index:2;
   }
   @keyframes pinPulse{
-    0%,100%{ transform:translate(-50%,-50%) scale(1); }
-    50%{ transform:translate(-50%,-50%) scale(1.18); }
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.18); }
   }
-  .pin.red{ background:var(--red); animation-delay:0s; }
-  .pin.green{ background:var(--green); animation-delay:0.6s; }
-  .pin.blue{ background:var(--blue); animation-delay:1.2s; }
-  .pin.white{ background:#eef2f5; }
-  .pin.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+  .pin-body.red{ background:var(--red); animation-delay:0s; }
+  .pin-body.green{ background:var(--green); animation-delay:0.6s; }
+  .pin-body.blue{ background:var(--blue); animation-delay:1.2s; }
+  .pin-body.white{ background:#eef2f5; }
+  .pin-body.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+  .pin-body.tap{ animation: pinTap 0.25s ease-out; }
+  @keyframes pinTap{
+    0%{ transform:scale(1); }
+    50%{ transform:scale(1.6); }
+    100%{ transform:scale(1); }
+  }
 
-  .pin::after{
-    content:"";
+  .pin-ring{
     position:absolute; inset:0;
     border-radius:50%;
     border:2px solid currentColor;
     opacity:0;
     animation: ringOut 2.4s ease-out infinite;
+    pointer-events:none;
   }
-  .pin.red::after{ color:var(--red); animation-delay:0s; }
-  .pin.green::after{ color:var(--green); animation-delay:0.6s; }
-  .pin.blue::after{ color:var(--blue); animation-delay:1.2s; }
+  .pin-ring.red{ color:var(--red); animation-delay:0s; }
+  .pin-ring.green{ color:var(--green); animation-delay:0.6s; }
+  .pin-ring.blue{ color:var(--blue); animation-delay:1.2s; }
   @keyframes ringOut{
     0%{ transform:scale(1); opacity:0.8; }
     100%{ transform:scale(2.6); opacity:0; }
   }
+  .pin-ring.burst{
+    animation: ringBurst 0.6s ease-out forwards;
+  }
+  @keyframes ringBurst{
+    0%{ transform:scale(1); opacity:0.9; }
+    100%{ transform:scale(2.2); opacity:0; }
+  }
 
   /* mini web radar, bottom right of map */
   .radar{
-    position:absolute; left:50%; bottom:2%;
-    transform:translateX(-50%);
-    width:70px; height:70px;
+    position:absolute; right:3%; bottom:3%;
+    width:52px; height:52px;
   }
   .radar svg{ width:100%; height:100%; opacity:0.9; }
   .radar .rr{ fill:none; stroke:var(--frame-light); stroke-width:1; opacity:0.7; }
@@ -382,42 +377,9 @@
   </div>
 
   <div class="map-frame">
-    <div class="continent c-na"></div>
-    <div class="continent c-sa"></div>
-    <div class="continent c-eu"></div>
-    <div class="continent c-af"></div>
-    <div class="continent c-as"></div>
-    <div class="continent c-au"></div>
+    <div id="leafletMap"></div>
 
-    <div class="label" style="left:12%; top:18%;">N. America</div>
-    <div class="label" style="left:22%; top:52%;">S. America</div>
-    <div class="label" style="left:46%; top:14%;">Europe</div>
-    <div class="label" style="left:47%; top:36%;">Africa</div>
-    <div class="label" style="left:62%; top:18%;">Asia</div>
-    <div class="label" style="left:70%; top:64%;">Australia</div>
-
-    <!-- pins scattered across the world -->
-    <div class="pin white glow" style="left:22%; top:26%;">🕸️</div>
-    <div class="pin red" style="left:16%; top:22%;">🕸️</div>
-    <div class="pin red" style="left:27%; top:32%;">🕸️</div>
-    <div class="pin green" style="left:25%; top:58%;">🕸️</div>
-    <div class="pin blue" style="left:28%; top:64%;">🕸️</div>
-
-    <div class="pin red glow" style="left:50%; top:20%;">🕸️</div>
-    <div class="pin green" style="left:54%; top:24%;">🕸️</div>
-    <div class="pin red" style="left:51%; top:40%;">🕸️</div>
-    <div class="pin blue" style="left:56%; top:46%;">🕸️</div>
-
-    <div class="pin red" style="left:66%; top:24%;">🕸️</div>
-    <div class="pin green" style="left:74%; top:20%;">🕸️</div>
-    <div class="pin red" style="left:76%; top:32%;">🕸️</div>
-    <div class="pin blue" style="left:70%; top:38%;">🕸️</div>
-    <div class="pin green" style="left:64%; top:48%;">🕸️</div>
-
-    <div class="pin red" style="left:76%; top:66%;">🕸️</div>
-    <div class="pin blue" style="left:80%; top:70%;">🕸️</div>
-
-    <div class="radar">
+    <div class="radar" style="z-index:1000;">
       <svg viewBox="0 0 100 100">
         <polygon class="rr" points="50,10 82,25 90,55 68,85 32,85 10,55 18,25"/>
         <polygon class="rr" points="50,25 70,34 76,54 62,72 38,72 24,54 30,34"/>
@@ -435,10 +397,10 @@
         <circle class="dot-g" cx="34" cy="70" r="3"/>
         <line class="sweep-line" x1="50" y1="50" x2="50" y2="10"/>
       </svg>
-      <div class="radar-icon globe">
+      <div class="radar-icon globe" id="worldBtn" style="cursor:pointer;">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#dff3fb" stroke-width="1.5"/><line x1="3" y1="12" x2="21" y2="12" stroke="#dff3fb" stroke-width="1.2"/><path d="M12,3 C7,7 7,17 12,21 C17,17 17,7 12,3" fill="none" stroke="#dff3fb" stroke-width="1.2"/></svg>
       </div>
-      <div class="radar-icon target">
+      <div class="radar-icon target" id="locateBtn" style="cursor:pointer;">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#dff3fb" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#dff3fb"/></svg>
       </div>
     </div>
@@ -488,6 +450,116 @@
 
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  /* ---------- Leaflet real world map ---------- */
+  const map = L.map('leafletMap', {
+    zoomControl: true,
+    attributionControl: true,
+    worldCopyJump: true
+  }).setView([20, 10], 2);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  setTimeout(function(){ map.invalidateSize(); }, 300);
+
+  const sightings = [
+    { lat: 40.71, lng: -74.00, color: 'white', label: 'New York', glow: true },
+    { lat: 34.05, lng: -118.24, color: 'red', label: 'Los Angeles' },
+    { lat: 19.43, lng: -99.13, color: 'red', label: 'Mexico City' },
+    { lat: -23.55, lng: -46.63, color: 'green', label: 'Sao Paulo' },
+    { lat: -12.05, lng: -77.04, color: 'blue', label: 'Lima' },
+
+    { lat: 51.51, lng: -0.13, color: 'red', glow: true, label: 'London' },
+    { lat: 48.86, lng: 2.35, color: 'green', label: 'Paris' },
+    { lat: 30.04, lng: 31.24, color: 'red', label: 'Cairo' },
+    { lat: -1.29, lng: 36.82, color: 'blue', label: 'Nairobi' },
+
+    { lat: 35.68, lng: 139.69, color: 'red', label: 'Tokyo' },
+    { lat: 39.90, lng: 116.41, color: 'green', label: 'Beijing' },
+    { lat: 28.61, lng: 77.21, color: 'red', label: 'New Delhi' },
+    { lat: 1.35, lng: 103.82, color: 'blue', label: 'Singapore' },
+    { lat: 19.08, lng: 72.88, color: 'green', label: 'Mumbai' },
+
+    { lat: -33.87, lng: 151.21, color: 'red', label: 'Sydney' },
+    { lat: -37.81, lng: 144.96, color: 'blue', label: 'Melbourne' }
+  ];
+
+  const markers = [];
+
+  sightings.forEach(function(s){
+    const icon = L.divIcon({
+      className: 'pin-marker',
+      html: '<span class="pin-body ' + s.color + (s.glow ? ' glow' : '') + '">🕸️</span><span class="pin-ring ' + s.color + '"></span>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    const marker = L.marker([s.lat, s.lng], { icon: icon }).addTo(map);
+    marker.on('click', function(){
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      beep();
+      speak('Web signal detected');
+      showToast(s.label + ' — signal detected');
+      const el = marker.getElement();
+      if(el){
+        const body = el.querySelector('.pin-body');
+        const ring = el.querySelector('.pin-ring');
+        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
+        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
+      }
+    });
+    markers.push(marker);
+  });
+
+  /* ---------- WORLD button: fly to India's prime locations ---------- */
+  const indiaBounds = L.latLngBounds([
+    [8.0, 68.0],   // south-west (near Kanyakumari / Gujarat coast)
+    [35.0, 97.5]   // north-east (near Kashmir / Arunachal)
+  ]);
+
+  document.getElementById('worldBtn').addEventListener('click', function(){
+    map.flyToBounds(indiaBounds, { padding: [20, 20], duration: 1.2 });
+    if(typeof showToast === 'function') showToast('Showing India — prime locations');
+    if(typeof beep === 'function') beep();
+  });
+
+  /* ---------- TARGET button: locate the user precisely ---------- */
+  let userMarker = null;
+  document.getElementById('locateBtn').addEventListener('click', function(){
+    if(!navigator.geolocation){
+      if(typeof showToast === 'function') showToast('Location not supported');
+      return;
+    }
+    if(typeof showToast === 'function') showToast('Locating you...');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      if(userMarker){
+        map.removeLayer(userMarker);
+      }
+      const icon = L.divIcon({
+        className: 'pin-marker',
+        html: '<span class="pin-body white glow">🕸️</span><span class="pin-ring blue"></span>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      userMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+
+      map.flyTo([lat, lng], 12, { duration: 1.2 });
+      if(typeof showToast === 'function') showToast('You are here');
+      if(typeof beep === 'function') beep();
+      if(typeof speak === 'function') speak('Location detected');
+    }, function(err){
+      if(typeof showToast === 'function') showToast('Could not get location');
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  });
+
+</script>
 <script>
   let audioCtx = null;
   let soundOn = false;
@@ -546,18 +618,6 @@
     }
     window.speechSynthesis.speak(u);
   }
-
-  document.querySelectorAll('.pin').forEach(function(pin){
-    pin.style.cursor = 'pointer';
-    pin.addEventListener('click', function(e){
-      e.stopPropagation();
-      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      beep();
-      speak('Web signal detected');
-      pin.style.transform = 'translate(-50%,-50%) scale(1.5)';
-      setTimeout(function(){ pin.style.transform = ''; }, 200);
-    });
-  });
 
   /* ---------- Header spider drop animation ---------- */
   document.getElementById('dropBtn').addEventListener('click', function(){
@@ -633,48 +693,46 @@
   document.getElementById('liveMapBtn').addEventListener('click', function(){
     beep();
     showToast('Scanning global grid...');
-    document.querySelectorAll('.pin').forEach(function(pin, i){
+    markers.forEach(function(marker, i){
       setTimeout(function(){
-        pin.style.transform = 'translate(-50%,-50%) scale(1.4)';
-        setTimeout(function(){ pin.style.transform = ''; }, 180);
+        const el = marker.getElement();
+        if(!el) return;
+        const body = el.querySelector('.pin-body');
+        const ring = el.querySelector('.pin-ring');
+        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
+        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
       }, i * 80);
     });
   });
 
-  /* ---------- TRACK NOW: drop a new random pin ---------- */
+  /* ---------- TRACK NOW: drop a new random marker on the real map ---------- */
   const pinColors = ['red','green','blue'];
   document.getElementById('trackNowBtn').addEventListener('click', function(){
-    const mapFrame = document.querySelector('.map-frame');
-    const rect = mapFrame.getBoundingClientRect();
-
-    // random point within the circular globe
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * 42; // percent, keep inside circle
-    const leftPct = 50 + radius * Math.cos(angle);
-    const topPct = 50 + radius * Math.sin(angle);
-
     const color = pinColors[Math.floor(Math.random() * pinColors.length)];
-    const newPin = document.createElement('div');
-    newPin.className = 'pin ' + color;
-    newPin.style.left = leftPct + '%';
-    newPin.style.top = topPct + '%';
-    newPin.style.fontSize = '0px';
-    newPin.textContent = '🕸️';
-    mapFrame.appendChild(newPin);
+    const lat = (Math.random() * 140) - 70;
+    const lng = (Math.random() * 340) - 170;
 
-    requestAnimationFrame(function(){
-      newPin.style.transition = 'font-size 0.3s ease-out';
-      newPin.style.fontSize = '16px';
+    const icon = L.divIcon({
+      className: 'pin-marker',
+      html: '<span class="pin-body ' + color + '">🕸️</span><span class="pin-ring ' + color + '"></span>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
+    const newMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+    markers.push(newMarker);
 
-    newPin.style.cursor = 'pointer';
-    newPin.addEventListener('click', function(e){
-      e.stopPropagation();
+    newMarker.on('click', function(){
       if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       beep();
       speak('Web signal detected');
-      newPin.style.transform = 'translate(-50%,-50%) scale(1.5)';
-      setTimeout(function(){ newPin.style.transform = ''; }, 200);
+      showToast('New signal — signal detected');
+      const el = newMarker.getElement();
+      if(el){
+        const body = el.querySelector('.pin-body');
+        const ring = el.querySelector('.pin-ring');
+        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
+        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
+      }
     });
 
     if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
