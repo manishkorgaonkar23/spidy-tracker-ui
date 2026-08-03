@@ -9,6 +9,12 @@
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
   :root{
+    --theme-bg: #04202f;
+    --theme-panel: #052233;
+    --theme-border: #1ea3c9;
+    --theme-text: #dff3fb;
+    --theme-map-bg: #0a2a44;
+    --theme-map-filter: var(--theme-map-filter);
     --frame: #0f6e8c;
     --frame-light: #1ea3c9;
     --map-bg: #0a2a44;
@@ -21,7 +27,7 @@
   }
 
   *{ box-sizing:border-box; margin:0; padding:0; image-rendering:pixelated; }
-  html,body{ background:#04202f; height:100%; font-family:'VT323',monospace; }
+  html,body{ background:var(--theme-bg); height:100%; font-family:'VT323',monospace; }
 
   .app{
     max-width:430px; margin:0 auto; min-height:100vh;
@@ -46,7 +52,7 @@
 
   .title-plate{
     flex:1; margin:0 10px;
-    background:#052233;
+    background:var(--theme-panel);
     border:3px solid var(--frame-light);
     border-radius:4px;
     text-align:center;
@@ -129,6 +135,60 @@
     100%{ top:100%; opacity:0; }
   }
 
+  .theme-btn{
+    width:44px; height:44px; border-radius:8px;
+    background:var(--theme-panel);
+    border:3px solid #05202e;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; cursor:pointer; z-index:6;
+    color:var(--theme-text);
+  }
+
+  body.light-mode{
+    --theme-bg:#f3f7fa;
+    --theme-panel:#ffffff;
+    --theme-border:#0f6e8c;
+    --theme-text:#102a38;
+    --theme-map-bg:#dbe8ee;
+    --theme-map-filter:brightness(1) saturate(0.75) contrast(1);
+  }
+
+  body.light-mode .title-plate,
+  body.light-mode .share-plate,
+  body.light-mode .leaflet-control-zoom a,
+  body.light-mode .radar-icon{
+    color:var(--theme-text);
+  }
+
+  body.light-mode .leaflet-control-zoom a{
+    background:#ffffff !important;
+    border-color:#9bb3bf !important;
+  }
+
+  body.light-mode .leaflet-control-attribution{
+    background:rgba(255,255,255,0.85) !important;
+    color:#35505d !important;
+  }
+
+  body.light-mode .leaflet-control-attribution a{
+    color:#0f6e8c !important;
+  }
+
+  body.light-mode .spider-btn,
+  body.light-mode .theme-btn{
+    background:#ffffff;
+  }
+
+  body.light-mode #toast{
+    background:#ffffff !important;
+    color:#102a38 !important;
+    border-color:#0f6e8c !important;
+  }
+
+  body.light-mode .theme-btn{
+    border-color:#17323e;
+  }
+
   /* ---------- Map ---------- */
   .map-frame{
     margin:0 10px;
@@ -140,11 +200,11 @@
   }
   #leafletMap{
     width:100%; height:100%;
-    background:#0a2a44;
+    background:var(--theme-map-bg);
   }
   /* dim/tint the OSM tiles to match app palette */
   #leafletMap .leaflet-baseTiles-pane{
-    filter: brightness(0.6) saturate(1.3) hue-rotate(-6deg) contrast(1.15);
+    filter: var(--theme-map-filter);
   }
   #leafletMap .leaflet-labelsPane-pane{
     filter: brightness(1.05) contrast(1.1);
@@ -196,7 +256,7 @@
     50%{ transform:scale(1.18); }
   }
   .pin-body.red{ background:var(--red); animation-delay:0s; }
-  .pin-body.green{ background:var(--green); animation-delay:0.6s; }
+  .pin-body.amber{ background:var(--green); animation-delay:0.6s; }
   .pin-body.blue{ background:var(--blue); animation-delay:1.2s; }
   .pin-body.white{ background:#eef2f5; }
   .pin-body.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
@@ -216,7 +276,7 @@
     pointer-events:none;
   }
   .pin-ring.red{ color:var(--red); animation-delay:0s; }
-  .pin-ring.green{ color:var(--green); animation-delay:0.6s; }
+  .pin-ring.amber{ color:var(--green); animation-delay:0.6s; }
   .pin-ring.blue{ color:var(--blue); animation-delay:1.2s; }
   @keyframes ringOut{
     0%{ transform:scale(1); opacity:0.8; }
@@ -251,7 +311,7 @@
   .radar-icon{
     position:absolute;
     width:26px; height:26px; border-radius:50%;
-    background:#052233; border:2px solid var(--frame-light);
+    background:var(--theme-panel); border:2px solid var(--frame-light);
     display:flex; align-items:center; justify-content:center;
   }
   .radar-icon.globe{ right:-6px; top:34px; }
@@ -283,7 +343,7 @@
   }
   .share-plate{
     flex:1;
-    background:#04202f;
+    background:var(--theme-bg);
     border:3px solid var(--frame-light);
     border-radius:6px;
     padding:10px 14px;
@@ -372,6 +432,9 @@
   <div class="header">
     <div class="menu-btn"><div></div></div>
     <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE</div></div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">
+      ☀️
+    </button>
     <div class="spider-btn" id="dropBtn">
       🕸️
       <div class="drop-thread" id="dropThread"></div>
@@ -422,7 +485,7 @@
     <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
   </div>
 
-  <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
+  <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:var(--theme-panel); border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
 
   <div id="webOverlay" class="web-overlay">
     <svg id="webSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
@@ -488,19 +551,19 @@
     { lat: 40.71, lng: -74.00, color: 'white', label: 'New York', glow: true },
     { lat: 34.05, lng: -118.24, color: 'red', label: 'Los Angeles' },
     { lat: 19.43, lng: -99.13, color: 'red', label: 'Mexico City' },
-    { lat: -23.55, lng: -46.63, color: 'green', label: 'Sao Paulo' },
+    { lat: -23.55, lng: -46.63, color: 'amber', label: 'Sao Paulo' },
     { lat: -12.05, lng: -77.04, color: 'blue', label: 'Lima' },
 
     { lat: 51.51, lng: -0.13, color: 'red', glow: true, label: 'London' },
-    { lat: 48.86, lng: 2.35, color: 'green', label: 'Paris' },
+    { lat: 48.86, lng: 2.35, color: 'amber', label: 'Paris' },
     { lat: 30.04, lng: 31.24, color: 'red', label: 'Cairo' },
     { lat: -1.29, lng: 36.82, color: 'blue', label: 'Nairobi' },
 
     { lat: 35.68, lng: 139.69, color: 'red', label: 'Tokyo' },
-    { lat: 39.90, lng: 116.41, color: 'green', label: 'Beijing' },
+    { lat: 39.90, lng: 116.41, color: 'amber', label: 'Beijing' },
     { lat: 28.61, lng: 77.21, color: 'red', label: 'New Delhi' },
     { lat: 1.35, lng: 103.82, color: 'blue', label: 'Singapore' },
-    { lat: 19.08, lng: 72.88, color: 'green', label: 'Mumbai' },
+    { lat: 19.08, lng: 72.88, color: 'amber', label: 'Mumbai' },
 
     { lat: -33.87, lng: 151.21, color: 'red', label: 'Sydney' },
     { lat: -37.81, lng: 144.96, color: 'blue', label: 'Melbourne' }
@@ -575,6 +638,39 @@
       if(typeof showToast === 'function') showToast('Could not get location');
     }, { enableHighAccuracy: true, timeout: 10000 });
   });
+
+</script>
+<script>
+  /* ---------- Theme toggle ---------- */
+  (function(){
+    const themeBtn = document.getElementById('themeBtn');
+    const savedTheme = localStorage.getItem('spidy-theme');
+
+    if(savedTheme === 'light'){
+      document.body.classList.add('light-mode');
+    }
+
+    function updateThemeButton(){
+      const light = document.body.classList.contains('light-mode');
+      themeBtn.textContent = light ? '🌙' : '☀️';
+      themeBtn.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode');
+      themeBtn.title = light ? 'Switch to dark mode' : 'Switch to light mode';
+    }
+
+    updateThemeButton();
+
+    themeBtn.addEventListener('click', function(){
+      const light = document.body.classList.toggle('light-mode');
+      localStorage.setItem('spidy-theme', light ? 'light' : 'dark');
+      updateThemeButton();
+
+      // Recalculate Leaflet rendering after the palette changes.
+      setTimeout(function(){ map.invalidateSize(); }, 50);
+      if(typeof showToast === 'function'){
+        showToast(light ? 'Light mode enabled' : 'Dark mode enabled');
+      }
+    });
+  })();
 
 </script>
 <script>
@@ -723,7 +819,7 @@
   });
 
   /* ---------- TRACK NOW: drop a new random marker on the real map ---------- */
-  const pinColors = ['red','green','blue'];
+  const pinColors = ['red','amber','blue'];
   document.getElementById('trackNowBtn').addEventListener('click', function(){
     const color = pinColors[Math.floor(Math.random() * pinColors.length)];
     const lat = (Math.random() * 140) - 70;
