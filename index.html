@@ -416,6 +416,13 @@
     opacity: 0.7;
   }
 </style>
+
+<style id="spiderSenseCSS">
+.spider-sense-btn{position:absolute;top:10px;right:10px;z-index:1002;padding:8px 10px;border:3px solid #05202e;border-radius:5px;background:#052233;color:#dff3fb;font-family:'Press Start 2P',monospace;font-size:7px;cursor:pointer;box-shadow:0 0 0 rgba(79,168,216,0);transition:.2s}.spider-sense-btn.active{background:#ffb020;color:#3a1c00;box-shadow:0 0 16px rgba(255,176,32,.65)}
+.spider-sense-status{position:absolute;left:50%;top:48px;transform:translateX(-50%);z-index:1002;background:rgba(5,34,51,.94);border:2px solid #1ea3c9;color:#dff3fb;padding:5px 9px;border-radius:4px;font-family:'VT323',monospace;font-size:15px;letter-spacing:1px;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}.spider-sense-status.show{opacity:1}
+.spider-sense-pulse{position:absolute;z-index:1001;width:18px;height:18px;border:2px solid #ffb020;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;display:none;animation:sensePulse 2s ease-out infinite}.spider-sense-pulse.active{display:block}@keyframes sensePulse{0%{width:18px;height:18px;opacity:.9}70%{width:250px;height:250px;opacity:.18}100%{width:300px;height:300px;opacity:0}}
+.pin-body.sense-hit{animation:senseHit .65s ease-in-out infinite alternate!important;filter:drop-shadow(0 0 10px rgba(255,176,32,.95))!important}@keyframes senseHit{to{transform:scale(1.35)}}
+</style>
 </head>
 <body>
 
@@ -436,6 +443,7 @@
     <div id="leafletMap"></div>
     <div id="globeMap"></div>
     <button id="view3dBtn" class="view3d-btn" type="button">3D</button>
+    <button id="spiderSenseBtn" class="spider-sense-btn" type="button">🕷️ SENSE</button>
     <div id="viewModeBadge" class="view-mode-badge">2D MAP</div>
 
     <div class="radar" style="z-index:1000;">
@@ -613,6 +621,7 @@
     });
     markers.push(marker);
   });
+  window.markers = markers;
 
   /* ---------- WORLD button: fly to India's prime locations ---------- */
   const indiaBounds = L.latLngBounds([
@@ -648,6 +657,8 @@
         iconAnchor: [16, 16]
       });
       userMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+      window.userMarker = userMarker;
+      if(window.spiderSenseUpdate) setTimeout(window.spiderSenseUpdate, 100);
 
       map.flyTo([lat, lng], 12, { duration: 1.2 });
       if(typeof showToast === 'function') showToast('You are here');
@@ -998,5 +1009,59 @@
 })();
 </script>
 
+
+<script id="spiderSenseJS">
+(function(){
+  const btn=document.getElementById('spiderSenseBtn');
+  const mapFrame=document.querySelector('.map-frame');
+  if(!btn||!mapFrame||typeof L==='undefined') return;
+  let active=false, senseCircle=null, pulse=null, status=null, timer=null;
+  function ui(){
+    if(!status){status=document.createElement('div');status.className='spider-sense-status';mapFrame.appendChild(status)}
+    if(!pulse){pulse=document.createElement('div');pulse.className='spider-sense-pulse';mapFrame.appendChild(pulse)}
+  }
+  function highlightMarkers(){
+    if(!window.markers||!window.userMarker) return 0;
+    const center=window.userMarker.getLatLng();
+    let hits=0;
+    window.markers.forEach(function(m){
+      const el=m.getElement(); if(!el) return;
+      const d=center.distanceTo(m.getLatLng());
+      const hit=d<=500000;
+      const body=el.querySelector('.pin-body');
+      if(body){body.classList.toggle('sense-hit',active&&hit)}
+      if(hit) hits++;
+    });
+    return hits;
+  }
+  function update(){
+    if(!active) return;
+    if(!window.userMarker){status.textContent='🕷️ LOCATE YOURSELF TO START';return}
+    const p=window.userMarker.getLatLng();
+    if(!senseCircle){senseCircle=L.circle(p,{radius:500000,color:'#ffb020',weight:2,opacity:.5,fillColor:'#ffb020',fillOpacity:.035,dashArray:'8 8'}).addTo(map)}else senseCircle.setLatLng(p);
+    const pt=map.latLngToContainerPoint(p);
+    pulse.style.left=pt.x+'px';pulse.style.top=pt.y+'px';pulse.classList.add('active');
+    const hits=highlightMarkers();
+    status.textContent='🕷️ SPIDER SENSE  •  '+hits+' SIGNAL'+(hits===1?'':'S')+' WITHIN 500 KM';
+  }
+  function start(){
+    ui();active=true;btn.classList.add('active');btn.textContent='🕷️ SENSE ON';
+    if(!window.userMarker){document.getElementById('locateBtn')?.click()}
+    update();timer=setInterval(update,1000);
+    if(typeof showToast==='function') showToast('Spider Sense scanning...');
+  }
+  function stop(){
+    active=false;btn.classList.remove('active');btn.textContent='🕷️ SENSE';
+    if(timer) clearInterval(timer);timer=null;
+    if(senseCircle){map.removeLayer(senseCircle);senseCircle=null}
+    if(pulse)pulse.classList.remove('active');
+    document.querySelectorAll('.pin-body.sense-hit').forEach(function(e){e.classList.remove('sense-hit')});
+    if(status)status.classList.remove('show');
+  }
+  btn.addEventListener('click',function(){active?stop():start()});
+  // show status while scanning; the existing locate handler sets window.userMarker below via the patch.
+  window.spiderSenseUpdate=update;
+})();
+</script>
 </body>
 </html>
