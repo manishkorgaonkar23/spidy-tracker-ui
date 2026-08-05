@@ -248,7 +248,7 @@
     50%{ transform:scale(1.18); }
   }
   .pin-body.red{ background:var(--red); animation-delay:0s; }
-  .pin-body.amber{ background:var(--green); animation-delay:0.6s; }
+  .pin-body.amber{ background:var(--amber); animation-delay:0.6s; }
   .pin-body.blue{ background:var(--blue); animation-delay:1.2s; }
   .pin-body.white{ background:#eef2f5; }
   .pin-body.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
@@ -918,41 +918,7 @@
     });
   });
 
-  /* ---------- TRACK NOW: drop a new random marker on the real map ---------- */
-  const pinColors = ['red','amber','blue'];
-  document.getElementById('trackNowBtn').addEventListener('click', function(){
-    const color = pinColors[Math.floor(Math.random() * pinColors.length)];
-    const lat = (Math.random() * 140) - 70;
-    const lng = (Math.random() * 340) - 170;
-
-    const icon = L.divIcon({
-      className: 'pin-marker',
-      html: '<span class="pin-body ' + color + '">🕸️</span><span class="pin-ring ' + color + '"></span>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
-    });
-    const newMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
-    markers.push(newMarker);
-
-    newMarker.on('click', function(){
-      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      beep();
-      speak('Web signal detected');
-      showToast('New signal — signal detected');
-      const el = newMarker.getElement();
-      if(el){
-        const body = el.querySelector('.pin-body');
-        const ring = el.querySelector('.pin-ring');
-        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
-        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
-      }
-    });
-
-    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    beep();
-    speak('New signal detected');
-    showToast('New sighting logged');
-  });
+  /* ---------- TRACK NOW: handled by the real GPS + Supabase tracking script below ---------- */
 </script>
 
 
@@ -1200,9 +1166,10 @@
   const trackButton=document.getElementById('trackNowBtn');
   if(trackButton) trackButton.addEventListener('click',trackNow);
 
-  // Also make the target button use the same tracking flow.
-  const locate=document.getElementById('locateBtn');
-  if(locate) locate.addEventListener('click',trackNow);
+  // NOTE: the Locate/Target button intentionally keeps its own handler
+  // (defined earlier) which only shows "you are here" on the map — it
+  // does NOT publish your location to the public sightings table.
+  // Only "Track Now" saves a sighting to Supabase.
 
   loadRemoteSightings();
 
@@ -1223,255 +1190,5 @@
 })();
 </script>
 
-<script>
-/* =========================================================
-   SPIDY TRACKER — FINAL GPS + SUPABASE FIX
-   Removes old duplicate button handlers and uses INSERT only.
-   ========================================================= */
-(function () {
-  const SUPABASE_URL =
-    'https://wlxsoxwyoczpcxkajgkf.supabase.co';
-
-  const SUPABASE_KEY =
-    'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
-
-  if (!window.supabase) {
-    console.error('Supabase SDK not loaded');
-    return;
-  }
-
-  const db = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
-
-  /* ---------- Replace buttons to remove ALL old listeners ---------- */
-
-  function replaceButton(id) {
-    const oldBtn = document.getElementById(id);
-    if (!oldBtn) return null;
-
-    const newBtn = oldBtn.cloneNode(true);
-    oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-
-    return newBtn;
-  }
-
-  const trackBtn = replaceButton('trackNowBtn');
-  const locateBtn = replaceButton('locateBtn');
-
-  /* ---------- Toast ---------- */
-
-  function notify(message) {
-    if (typeof showToast === 'function') {
-      showToast(message);
-      return;
-    }
-
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    toast.textContent = message;
-    toast.style.opacity = '1';
-
-    clearTimeout(window.__spidyFinalToast);
-
-    window.__spidyFinalToast = setTimeout(function () {
-      toast.style.opacity = '0';
-    }, 2500);
-  }
-
-  /* ---------- User marker ---------- */
-
-  function showUserLocation(lat, lng) {
-
-    if (window.userMarker) {
-      try {
-        map.removeLayer(window.userMarker);
-      } catch (e) {}
-    }
-
-    const icon = L.divIcon({
-      className: 'pin-marker',
-      html:
-        '<span class="pin-body white glow">🕷️</span>' +
-        '<span class="pin-ring blue"></span>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
-    });
-
-    window.userMarker = L.marker(
-      [lat, lng],
-      { icon: icon }
-    )
-      .addTo(map)
-      .bindPopup(
-        '<b>Your location</b><br>' +
-        lat.toFixed(5) +
-        ', ' +
-        lng.toFixed(5)
-      );
-
-    if (window.markers && !window.markers.includes(window.userMarker)) {
-      window.markers.push(window.userMarker);
-    }
-
-    map.flyTo(
-      [lat, lng],
-      13,
-      { duration: 1.2 }
-    );
-
-    if (window.spiderSenseUpdate) {
-      setTimeout(
-        window.spiderSenseUpdate,
-        100
-      );
-    }
-  }
-
-  /* ---------- Save GPS to Supabase ---------- */
-
-  async function saveSighting(lat, lng) {
-
-    const row = {
-      latitude: lat,
-      longitude: lng,
-      label: 'Live Sighting',
-      color: 'red',
-      status: 'active'
-    };
-
-    /*
-      IMPORTANT:
-      Do NOT use .select().single() here.
-      We only need INSERT.
-      This avoids a false failure when SELECT/RLS
-      permissions are different from INSERT permissions.
-    */
-
-    const result = await db
-      .from('sightings')
-      .insert(row);
-
-    if (result.error) {
-      console.error(
-        'SPIDY SUPABASE INSERT ERROR:',
-        result.error
-      );
-
-      notify(
-        '⚠️ Supabase save failed: ' +
-        result.error.message
-      );
-
-      return false;
-    }
-
-    return true;
-  }
-
-  /* ---------- Main GPS tracker ---------- */
-
-  async function trackNow() {
-
-    if (!navigator.geolocation) {
-      notify('📍 GPS is not supported');
-      return;
-    }
-
-    notify('📍 Getting your location...');
-
-    navigator.geolocation.getCurrentPosition(
-      async function (position) {
-
-        const lat =
-          position.coords.latitude;
-
-        const lng =
-          position.coords.longitude;
-
-        /* Show location immediately */
-        showUserLocation(lat, lng);
-
-        /* Save to Supabase */
-        const saved =
-          await saveSighting(lat, lng);
-
-        if (saved) {
-
-          notify(
-            '🕷️ Sighting saved successfully!'
-          );
-
-          if (typeof beep === 'function') {
-            try {
-              beep();
-            } catch (e) {}
-          }
-
-          if (typeof speak === 'function') {
-            try {
-              speak('Sighting saved');
-            } catch (e) {}
-          }
-
-        }
-
-      },
-
-      function (error) {
-
-        const messages = {
-          1: '📍 Location permission denied',
-          2: '📍 Location unavailable',
-          3: '📍 Location request timed out'
-        };
-
-        notify(
-          messages[error.code] ||
-          '📍 Could not get your location'
-        );
-
-        console.error(
-          'GPS ERROR:',
-          error
-        );
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
-      }
-    );
-  }
-
-  /* ---------- One clean TRACK NOW handler ---------- */
-
-  if (trackBtn) {
-    trackBtn.addEventListener(
-      'click',
-      trackNow
-    );
-  }
-
-  /* ---------- One clean TARGET handler ---------- */
-
-  if (locateBtn) {
-    locateBtn.addEventListener(
-      'click',
-      trackNow
-    );
-  }
-
-  /* ---------- Expose for Spider Sense ---------- */
-
-  window.spidyTrackNow = trackNow;
-
-  console.log(
-    '🕷️ SPIDY FINAL GPS/SUPABASE FIX ACTIVE'
-  );
-})();
-</script></body>
+</body>
 </html>
