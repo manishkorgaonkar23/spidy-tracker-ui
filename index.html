@@ -88,7 +88,7 @@
     font-size:24px;
     position:relative;
     cursor:pointer;
-    z-index:6;
+    z-index:2000;
   }
 
   .drop-thread{
@@ -556,4 +556,690 @@
 
   const lightLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd
+    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
+  });
+
+  function setMapTheme(light){
+    if(light){
+      if(map.hasLayer(darkBaseTiles)) map.removeLayer(darkBaseTiles);
+      if(map.hasLayer(darkLabels)) map.removeLayer(darkLabels);
+      lightBaseTiles.addTo(map);
+      lightLabels.addTo(map);
+    }else{
+      if(map.hasLayer(lightBaseTiles)) map.removeLayer(lightBaseTiles);
+      if(map.hasLayer(lightLabels)) map.removeLayer(lightLabels);
+      darkBaseTiles.addTo(map);
+      darkLabels.addTo(map);
+    }
+    map.invalidateSize();
+  }
+
+  setTimeout(function(){
+    map.invalidateSize();
+    if(document.body.classList.contains('light-mode')) setMapTheme(true);
+  }, 300);
+
+  /* Real sightings only — populated live from Supabase (see tracking script below). */
+  const markers = [];
+  window.markers = markers;
+  window.spidySightingsData = [];
+
+  /* ---------- WORLD button: fly to India's prime locations ---------- */
+  const indiaBounds = L.latLngBounds([
+    [8.0, 68.0],   // south-west (near Kanyakumari / Gujarat coast)
+    [35.0, 97.5]   // north-east (near Kashmir / Arunachal)
+  ]);
+
+  document.getElementById('worldBtn').addEventListener('click', function(){
+    map.flyToBounds(indiaBounds, { padding: [20, 20], duration: 1.2 });
+    if(typeof showToast === 'function') showToast('Showing India — prime locations');
+    if(typeof beep === 'function') beep();
+  });
+
+  /* ---------- TARGET button: locate the user precisely ---------- */
+  let userMarker = null;
+  document.getElementById('locateBtn').addEventListener('click', function(){
+    if(!navigator.geolocation){
+      if(typeof showToast === 'function') showToast('Location not supported');
+      return;
+    }
+    if(typeof showToast === 'function') showToast('Locating you...');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      if(userMarker){
+        map.removeLayer(userMarker);
+      }
+      const icon = L.divIcon({
+        className: 'pin-marker',
+        html: '<span class="pin-body white glow">🕸️</span><span class="pin-ring blue"></span>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      userMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+      window.userMarker = userMarker;
+      if(window.spiderSenseUpdate) setTimeout(window.spiderSenseUpdate, 100);
+
+      map.flyTo([lat, lng], 12, { duration: 1.2 });
+      if(typeof showToast === 'function') showToast('You are here');
+      if(typeof beep === 'function') beep();
+      if(typeof speak === 'function') speak('Location detected');
+    }, function(err){
+      if(typeof showToast === 'function') showToast('Could not get location');
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  });
+
+</script>
+<script>
+  /* ---------- 3D Globe ---------- */
+  let globe = null;
+  Object.defineProperty(window, 'globe', { get: function(){ return globe; }, configurable: true });
+  let is3D = false;
+
+  const globeEl = document.getElementById('globeMap');
+  const view3dBtn = document.getElementById('view3dBtn');
+  const viewModeBadge = document.getElementById('viewModeBadge');
+
+  function initGlobe(){
+    if(globe) return;
+
+    const data = (window.spidySightingsData || []).slice();
+
+    globe = Globe()(globeEl)
+      .backgroundColor('#0a2a44')
+      .showAtmosphere(true)
+      .atmosphereColor('#4fa8d8')
+      .atmosphereAltitude(0.12)
+      .pointsData(data)
+      .pointLat('lat')
+      .pointLng('lng')
+      .pointColor('color')
+      .pointRadius(0.55)
+      .pointAltitude(0.025)
+      .pointLabel(function(d){ return d.label + ' — signal'; })
+      .onPointClick(function(d){
+        if(typeof beep === 'function') beep();
+        if(typeof speak === 'function') speak('Web signal detected');
+        if(typeof showToast === 'function') showToast(d.label + ' — signal detected');
+      });
+
+    globe.controls().enableDamping = true;
+    globe.controls().dampingFactor = 0.08;
+    globe.controls().autoRotate = false;
+    resizeGlobe();
+  }
+
+  function resizeGlobe(){
+    if(!globe) return;
+    globe.width(globeEl.clientWidth);
+    globe.height(globeEl.clientHeight);
+  }
+
+  function updateGlobeTheme(){
+    if(!globe) return;
+    const light = document.body.classList.contains('light-mode');
+    globe.backgroundColor(light ? '#dbe8ee' : '#0a2a44');
+    globe.atmosphereColor(light ? '#0f6e8c' : '#4fa8d8');
+  }
+
+  let globeScriptLoading = null;
+  function loadGlobeScript(){
+    if(window.Globe) return Promise.resolve();
+    if(globeScriptLoading) return globeScriptLoading;
+    globeScriptLoading = new Promise(function(resolve, reject){
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/globe.gl@2.45.0/dist/globe.gl.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return globeScriptLoading;
+  }
+
+  function show3D(){
+    is3D = true;
+    document.getElementById('leafletMap').style.display = 'none';
+    globeEl.style.display = 'block';
+    view3dBtn.textContent = '2D';
+    viewModeBadge.textContent = 'LOADING 3D...';
+    loadGlobeScript().then(function(){
+      initGlobe();
+      updateGlobeTheme();
+      resizeGlobe();
+      viewModeBadge.textContent = '3D GLOBE';
+    }).catch(function(){
+      if(typeof showToast === 'function') showToast('Could not load 3D view — check connection');
+      show2D();
+    });
+  }
+
+  function show2D(){
+    is3D = false;
+    globeEl.style.display = 'none';
+    document.getElementById('leafletMap').style.display = 'block';
+    view3dBtn.textContent = '3D';
+    viewModeBadge.textContent = '2D MAP';
+    setTimeout(function(){ map.invalidateSize(); }, 60);
+  }
+
+  view3dBtn.addEventListener('click', function(){
+    if(is3D) show2D(); else show3D();
+  });
+
+  window.addEventListener('resize', resizeGlobe);
+</script>
+
+<script>
+  (function(){
+    const btn=document.getElementById('themeBtn');
+    const saved=localStorage.getItem('spidy-theme');
+    if(saved==='light') document.body.classList.add('light-mode');
+    function sync(){
+      const light=document.body.classList.contains('light-mode');
+      btn.textContent=light?'🌙':'☀️';
+      if(typeof setMapTheme==='function') setMapTheme(light);
+      if(typeof updateGlobeTheme==='function') updateGlobeTheme();
+    }
+    sync();
+    btn.addEventListener('click',function(){
+      const light=document.body.classList.toggle('light-mode');
+      localStorage.setItem('spidy-theme',light?'light':'dark');
+      sync();
+    });
+  })();
+</script>
+<script>
+  let audioCtx = null;
+  let soundOn = false;
+  let beepInterval = null;
+
+  function beep(){
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+  }
+
+  document.getElementById('audioBtn').addEventListener('click', function(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    soundOn = !soundOn;
+    const icon = document.getElementById('audioIcon');
+
+    if(soundOn){
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      beep();
+      beepInterval = setInterval(beep, 1500);
+      icon.innerHTML = '<path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><path d="M16,7 C20,10.5 20,13.5 16,17" fill="none" stroke="#052233" stroke-width="1.8"/><path d="M19,4 C25,9 25,15 19,20" fill="none" stroke="#052233" stroke-width="1.8"/>';
+    } else {
+      clearInterval(beepInterval);
+      icon.innerHTML = '<path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><line x1="16" y1="7" x2="22" y2="17" stroke="#052233" stroke-width="1.8"/><line x1="22" y1="7" x2="16" y2="17" stroke="#052233" stroke-width="1.8"/>';
+    }
+  });
+
+  let voices = [];
+  function loadVoices(){ voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; }
+  if('speechSynthesis' in window){
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function speak(text){
+    if(!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    u.pitch = 0.9;
+    u.volume = 1;
+    if(voices.length){
+      const enVoice = voices.find(function(v){ return v.lang && v.lang.indexOf('en') === 0; });
+      if(enVoice) u.voice = enVoice;
+    }
+    window.speechSynthesis.speak(u);
+  }
+
+  /* ---------- Header spider drop animation ---------- */
+  document.getElementById('dropBtn').addEventListener('click', function(){
+    const thread = document.getElementById('dropThread');
+    const spider = document.getElementById('dropSpider');
+
+    thread.classList.remove('animate');
+    spider.classList.remove('animate');
+    void thread.offsetWidth; // restart animation
+    void spider.offsetWidth;
+
+    thread.classList.add('animate');
+    spider.classList.add('animate');
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    speak('Web signal detected');
+
+    setTimeout(function(){
+      thread.classList.remove('animate');
+      spider.classList.remove('animate');
+    }, 1900);
+  });
+
+  document.getElementById('mascotBtn').addEventListener('click', function(){
+    const overlay = document.getElementById('webOverlay');
+    overlay.classList.remove('animate');
+    void overlay.offsetWidth;
+    overlay.classList.add('animate');
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    showToast('Web spread across the grid');
+
+    setTimeout(function(){
+      overlay.classList.remove('animate');
+    }, 1650);
+  });
+
+  /* ---------- MENU / ABOUT ---------- */
+  const menuBtn = document.getElementById('menuBtn');
+  if(menuBtn){
+    function openAbout(){
+      const total = (window.markers && window.markers.length) || 0;
+      showToast('SPIDY TRACKER — ' + total + ' live sighting(s) on the map. Tap TRACK NOW to add yours.');
+    }
+    menuBtn.addEventListener('click', openAbout);
+    menuBtn.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') openAbout(); });
+  }
+
+  /* ---------- CONNECTIVITY STATUS ---------- */
+  window.addEventListener('offline', function(){
+    if(typeof showToast === 'function') showToast('📡 No internet — sightings won\'t save until back online');
+  });
+  window.addEventListener('online', function(){
+    if(typeof showToast === 'function') showToast('✅ Back online');
+  });
+
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(function(){
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2200);
+  }
+
+  /* ---------- SHARE YOUR WEB ---------- */
+  document.getElementById('shareBtn').addEventListener('click', function(){
+    const shareData = {
+      title: 'Spidy Tracker',
+      text: 'Check out my Spidy Tracker — live web signal map!',
+      url: window.location.href
+    };
+    if(navigator.share){
+      navigator.share(shareData).catch(function(){});
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(window.location.href).then(function(){
+        showToast('Link copied!');
+      }).catch(function(){
+        showToast('Could not copy link');
+      });
+    } else {
+      showToast(window.location.href);
+    }
+  });
+
+  /* ---------- LIVE MAP: flash sweep + all pins ---------- */
+  document.getElementById('liveMapBtn').addEventListener('click', function(){
+    beep();
+    showToast('Scanning global grid...');
+    markers.forEach(function(marker, i){
+      setTimeout(function(){
+        const el = marker.getElement();
+        if(!el) return;
+        const body = el.querySelector('.pin-body');
+        const ring = el.querySelector('.pin-ring');
+        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
+        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
+      }, i * 80);
+    });
+  });
+
+  /* ---------- TRACK NOW: handled by the real GPS + Supabase tracking script below ---------- */
+</script>
+
+
+<script>
+/* ---------- SUPABASE LIVE VISITORS ---------- */
+(function(){
+  const SUPABASE_URL = 'https://wlxsoxwyoczcpxkajgkf.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
+
+  if(!window.supabase) return;
+
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const idKey = 'spidy-visitor-id';
+  let visitorId = localStorage.getItem(idKey);
+  if(!visitorId){
+    visitorId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
+    localStorage.setItem(idKey, visitorId);
+  }
+
+  const countEl = document.getElementById('visitorCount');
+  function setCount(n){ if(countEl) countEl.textContent = String(n || 0); }
+
+  async function register(){
+    const row = { visitor_id: visitorId, last_seen: new Date().toISOString() };
+    let r = await client.from('live_visitors').upsert(row, {onConflict:'visitor_id'});
+    if(r.error) console.warn('SPIDY live visitor:', r.error.message);
+  }
+
+  async function refresh(){
+    const cutoff = new Date(Date.now() - 45000).toISOString();
+    const r = await client.from('live_visitors')
+      .select('visitor_id', {count:'exact', head:true})
+      .gte('last_seen', cutoff);
+    if(!r.error) setCount(r.count);
+  }
+
+  async function heartbeat(){
+    const r = await client.from('live_visitors')
+      .update({last_seen:new Date().toISOString()})
+      .eq('visitor_id', visitorId);
+    if(r.error) await register();
+    refresh();
+  }
+
+  client.channel('spidy-live-visitors')
+    .on('postgres_changes',
+      {event:'*', schema:'public', table:'live_visitors'},
+      refresh
+    ).subscribe();
+
+  register().then(refresh);
+  setInterval(heartbeat, 20000);
+  setInterval(refresh, 10000);
+})();
+</script>
+
+
+<script id="spiderSenseJS">
+(function(){
+  const btn=document.getElementById('spiderSenseBtn');
+  const mapFrame=document.querySelector('.map-frame');
+  if(!btn||!mapFrame||typeof L==='undefined') return;
+  let active=false, senseCircle=null, pulse=null, status=null, timer=null;
+  function ui(){
+    if(!status){status=document.createElement('div');status.className='spider-sense-status';mapFrame.appendChild(status)}
+    if(!pulse){pulse=document.createElement('div');pulse.className='spider-sense-pulse';mapFrame.appendChild(pulse)}
+  }
+  function highlightMarkers(){
+    if(!window.markers||!window.userMarker) return 0;
+    const center=window.userMarker.getLatLng();
+    let hits=0;
+    window.markers.forEach(function(m){
+      const el=m.getElement(); if(!el) return;
+      const d=center.distanceTo(m.getLatLng());
+      const hit=d<=50000;
+      const body=el.querySelector('.pin-body');
+      if(body){body.classList.toggle('sense-hit',active&&hit)}
+      if(hit) hits++;
+    });
+    return hits;
+  }
+  function update(){
+    if(!active) return;
+    if(!window.userMarker){status.textContent='🕷️ LOCATE YOURSELF TO START';return}
+    const p=window.userMarker.getLatLng();
+    if(!senseCircle){senseCircle=L.circle(p,{radius:50000,color:'#ffb020',weight:2,opacity:.5,fillColor:'#ffb020',fillOpacity:.035,dashArray:'8 8'}).addTo(map)}else senseCircle.setLatLng(p);
+    const pt=map.latLngToContainerPoint(p);
+    pulse.style.left=pt.x+'px';pulse.style.top=pt.y+'px';pulse.classList.add('active');
+    const hits=highlightMarkers();
+    status.textContent='🕷️ SPIDER SENSE  •  '+hits+' SIGNAL'+(hits===1?'':'S')+' WITHIN 50 KM';
+  }
+  function start(){
+    ui();active=true;btn.classList.add('active');btn.textContent='🕷️ SENSE ON';
+    if(!window.userMarker){document.getElementById('locateBtn')?.click()}
+    update();timer=setInterval(update,1000);
+    if(typeof showToast==='function') showToast('Spider Sense scanning...');
+  }
+  function stop(){
+    active=false;btn.classList.remove('active');btn.textContent='🕷️ SENSE';
+    if(timer) clearInterval(timer);timer=null;
+    if(senseCircle){map.removeLayer(senseCircle);senseCircle=null}
+    if(pulse)pulse.classList.remove('active');
+    document.querySelectorAll('.pin-body.sense-hit').forEach(function(e){e.classList.remove('sense-hit')});
+    if(status)status.classList.remove('show');
+  }
+  btn.addEventListener('click',function(){active?stop():start()});
+  // show status while scanning; the existing locate handler sets window.userMarker below via the patch.
+  window.spiderSenseUpdate=update;
+})();
+</script>
+
+<script>
+/* ---------- SPIDY TRACKING + SUPABASE SIGHTINGS ---------- */
+(function(){
+  const SUPABASE_URL = 'https://wlxsoxwyoczcpxkajgkf.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
+  if(!window.supabase) return;
+
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const sightingMarkers = new Map();
+
+  function notify(message){
+    if(typeof showToast === 'function') showToast(message);
+    else {
+      const el=document.getElementById('toast');
+      if(!el) return;
+      el.textContent=message;
+      el.style.opacity='1';
+      clearTimeout(window.__spidyToast);
+      window.__spidyToast=setTimeout(()=>el.style.opacity='0',2600);
+    }
+  }
+
+  function coords(row){
+    const lat=Number(row.latitude ?? row.lat);
+    const lng=Number(row.longitude ?? row.lng ?? row.lon);
+    return Number.isFinite(lat)&&Number.isFinite(lng)?{lat,lng}:null;
+  }
+
+  function iconFor(color){
+    const safe=['red','amber','blue','white'].includes(color)?color:'red';
+    return L.divIcon({
+      className:'pin-marker',
+      html:'<span class="pin-body '+safe+'">🕷️<span class="pin-ring '+safe+'"></span></span>',
+      iconSize:[32,32],
+      iconAnchor:[16,16]
+    });
+  }
+
+  function addRemoteSighting(row){
+    if(!row) return;
+    const c=coords(row);
+    if(!c) return;
+    const key=String(row.id ?? (c.lat+':'+c.lng));
+
+    if(sightingMarkers.has(key)){
+      // Same sighting updated (e.g. re-tracked) — move the existing pin instead of stacking a new one.
+      const existing=sightingMarkers.get(key);
+      existing.setLatLng([c.lat,c.lng]);
+      existing.setPopupContent(
+        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
+        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
+        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
+      );
+      const entry=(window.spidySightingsData||[]).find(function(d){ return d.__key===key; });
+      if(entry){ entry.lat=c.lat; entry.lng=c.lng; if(window.globe) window.globe.pointsData(window.spidySightingsData); }
+      return;
+    }
+
+    const marker=L.marker([c.lat,c.lng],{icon:iconFor(row.color)})
+      .addTo(map)
+      .bindPopup(
+        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
+        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
+        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
+      );
+
+    sightingMarkers.set(key,marker);
+    if(window.markers) window.markers.push(marker);
+
+    if(window.spidySightingsData){
+      const colorHex = row.color === 'red' ? '#e4453f' : (row.color === 'amber' ? '#ffb020' : (row.color === 'blue' ? '#4fa8d8' : '#ffffff'));
+      window.spidySightingsData.push({ lat:c.lat, lng:c.lng, label:row.label || 'Spidy Sighting', color:colorHex, __key:key });
+      if(window.globe && typeof window.globe.pointsData === 'function'){
+        window.globe.pointsData(window.spidySightingsData);
+      }
+    }
+  }
+
+  async function loadRemoteSightings(){
+    const cutoff = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const r=await db.from('sightings').select('*').gte('created_at', cutoff).order('created_at',{ascending:false}).limit(300);
+    if(r.error){
+      console.warn('SPIDY sightings load:',r.error.message);
+      return;
+    }
+    (r.data||[]).forEach(addRemoteSighting);
+  }
+
+  async function saveSighting(lat,lng){
+    const visitorId = localStorage.getItem('spidy-visitor-id') ||
+      (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random());
+    if(!localStorage.getItem('spidy-visitor-id')) localStorage.setItem('spidy-visitor-id', visitorId);
+
+    const base={latitude:lat,longitude:lng};
+
+    // Upsert on visitor_id so re-tracking moves YOUR pin instead of creating a new one.
+    let r=await db.from('sightings').upsert({
+      ...base,
+      visitor_id:visitorId,
+      label:'Live Sighting',
+      color:'red',
+      status:'active'
+    },{onConflict:'visitor_id'}).select().single();
+
+    // Fallback for a minimal table containing only coordinates.
+    if(r.error){
+      console.warn('Rich sightings insert failed:',r.error.message);
+      r=await db.from('sightings').insert(base).select().single();
+    }
+
+    if(r.error){
+      console.error('SPIDY sightings insert:',r.error);
+      notify('⚠️ GPS found, but Supabase save failed');
+      return false;
+    }
+
+    addRemoteSighting(r.data);
+    return true;
+  }
+
+  let trackCooldownUntil = 0;
+
+  function trackNow(){
+    if(!navigator.geolocation){
+      notify('📍 GPS is not supported');
+      return;
+    }
+    if(!navigator.onLine){
+      notify('📡 No internet connection — try again when online');
+      return;
+    }
+    const now = Date.now();
+    if(now < trackCooldownUntil){
+      notify('⏳ Please wait a few seconds before tracking again');
+      return;
+    }
+    trackCooldownUntil = now + 15000;
+
+    const trackButton = document.getElementById('trackNowBtn');
+    if(trackButton){ trackButton.style.opacity = '0.6'; trackButton.style.pointerEvents = 'none'; trackButton.textContent = 'LOCATING...'; }
+    function resetButton(){
+      if(trackButton){ trackButton.style.opacity = ''; trackButton.style.pointerEvents = ''; trackButton.textContent = 'TRACK NOW'; }
+    }
+
+    notify('📍 Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(async function(pos){
+      const lat=pos.coords.latitude;
+      const lng=pos.coords.longitude;
+
+      // Keep the existing user-location marker in sync.
+      if(window.userMarker) map.removeLayer(window.userMarker);
+      const icon=L.divIcon({
+        className:'pin-marker',
+        html:'<span class="pin-body white glow">🕸️</span>',
+        iconSize:[32,32],
+        iconAnchor:[16,16]
+      });
+      window.userMarker=L.marker([lat,lng],{icon}).addTo(map)
+        .bindPopup('<b>Your location</b><br>'+lat.toFixed(5)+', '+lng.toFixed(5));
+
+      map.flyTo([lat,lng],13,{duration:1.2});
+
+      const saved=await saveSighting(lat,lng);
+      if(saved) notify('🕷️ Your sighting was saved');
+      resetButton();
+    },function(err){
+      const messages={
+        1:'📍 Location permission denied',
+        2:'📍 Location unavailable',
+        3:'📍 Location request timed out'
+      };
+      notify(messages[err.code] || '📍 Could not get your location');
+      resetButton();
+      trackCooldownUntil = 0;
+    },{
+      enableHighAccuracy:true,
+      timeout:15000,
+      maximumAge:0
+    });
+  }
+
+  const trackButton=document.getElementById('trackNowBtn');
+  if(trackButton) trackButton.addEventListener('click',trackNow);
+
+  // NOTE: the Locate/Target button intentionally keeps its own handler
+  // (defined earlier) which only shows "you are here" on the map — it
+  // does NOT publish your location to the public sightings table.
+  // Only "Track Now" saves a sighting to Supabase.
+
+  loadRemoteSightings();
+
+  db.channel('spidy-sightings')
+    .on('postgres_changes',{
+      event:'INSERT',
+      schema:'public',
+      table:'sightings'
+    },function(payload){
+      addRemoteSighting(payload.new);
+      notify('🕷️ New sighting detected');
+    })
+    .on('postgres_changes',{
+      event:'UPDATE',
+      schema:'public',
+      table:'sightings'
+    },function(payload){
+      addRemoteSighting(payload.new);
+    })
+    .subscribe(function(status){
+      if(status==='CHANNEL_ERROR') console.warn('SPIDY sightings realtime unavailable');
+    });
+
+  window.spidyTrackNow=trackNow;
+})();
+</script>
+
+</body>
+</html>
