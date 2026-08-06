@@ -237,21 +237,22 @@
   /* Spider pin marker (Leaflet divIcon wrapper + inner animated span) */
   .pin-body{
     position:relative;
-    width:32px; height:32px;
+    width:34px; height:34px;
     border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    border:2px solid #04202f;
-    font-size:16px;
-    animation: pinPulse 2.4s ease-in-out infinite;
+    border:2.5px solid #04202f;
+    font-size:17px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.45), inset 0 1px 2px rgba(255,255,255,0.25);
+    animation: pinPulse 3s ease-in-out infinite;
   }
   @keyframes pinPulse{
     0%,100%{ transform:scale(1); }
-    50%{ transform:scale(1.18); }
+    50%{ transform:scale(1.08); }
   }
-  .pin-body.red{ background:var(--red); animation-delay:0s; }
-  .pin-body.amber{ background:var(--amber); animation-delay:0.6s; }
-  .pin-body.blue{ background:var(--blue); animation-delay:1.2s; }
-  .pin-body.white{ background:#eef2f5; }
+  .pin-body.red{ background:radial-gradient(circle at 35% 30%, #ff6b63, var(--red)); animation-delay:0s; }
+  .pin-body.amber{ background:radial-gradient(circle at 35% 30%, #ffcf6b, var(--amber)); animation-delay:0.6s; }
+  .pin-body.blue{ background:radial-gradient(circle at 35% 30%, #8ecdf0, var(--blue)); animation-delay:1.2s; }
+  .pin-body.white{ background:radial-gradient(circle at 35% 30%, #ffffff, #eef2f5); }
   .pin-body.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
   .pin-body.tap{ animation: pinTap 0.25s ease-out; }
   @keyframes pinTap{
@@ -265,15 +266,15 @@
     border-radius:50%;
     border:2px solid currentColor;
     opacity:0;
-    animation: ringOut 2.4s ease-out infinite;
+    animation: ringOut 3s ease-out infinite;
     pointer-events:none;
   }
   .pin-ring.red{ color:var(--red); animation-delay:0s; }
   .pin-ring.amber{ color:var(--green); animation-delay:0.6s; }
   .pin-ring.blue{ color:var(--blue); animation-delay:1.2s; }
   @keyframes ringOut{
-    0%{ transform:scale(1); opacity:0.8; }
-    100%{ transform:scale(2.6); opacity:0; }
+    0%{ transform:scale(1); opacity:0.55; }
+    100%{ transform:scale(2.1); opacity:0; }
   }
   .pin-ring.burst{
     animation: ringBurst 0.6s ease-out forwards;
@@ -1036,7 +1037,20 @@
     const c=coords(row);
     if(!c) return;
     const key=String(row.id ?? (c.lat+':'+c.lng));
-    if(sightingMarkers.has(key)) return;
+
+    if(sightingMarkers.has(key)){
+      // Same sighting updated (e.g. re-tracked) — move the existing pin instead of stacking a new one.
+      const existing=sightingMarkers.get(key);
+      existing.setLatLng([c.lat,c.lng]);
+      existing.setPopupContent(
+        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
+        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
+        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
+      );
+      const entry=(window.spidySightingsData||[]).find(function(d){ return d.__key===key; });
+      if(entry){ entry.lat=c.lat; entry.lng=c.lng; if(window.globe) window.globe.pointsData(window.spidySightingsData); }
+      return;
+    }
 
     const marker=L.marker([c.lat,c.lng],{icon:iconFor(row.color)})
       .addTo(map)
@@ -1051,7 +1065,7 @@
 
     if(window.spidySightingsData){
       const colorHex = row.color === 'red' ? '#e4453f' : (row.color === 'amber' ? '#ffb020' : (row.color === 'blue' ? '#4fa8d8' : '#ffffff'));
-      window.spidySightingsData.push({ lat:c.lat, lng:c.lng, label:row.label || 'Spidy Sighting', color:colorHex });
+      window.spidySightingsData.push({ lat:c.lat, lng:c.lng, label:row.label || 'Spidy Sighting', color:colorHex, __key:key });
       if(window.globe && typeof window.globe.pointsData === 'function'){
         window.globe.pointsData(window.spidySightingsData);
       }
@@ -1068,15 +1082,20 @@
   }
 
   async function saveSighting(lat,lng){
+    const visitorId = localStorage.getItem('spidy-visitor-id') ||
+      (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random());
+    if(!localStorage.getItem('spidy-visitor-id')) localStorage.setItem('spidy-visitor-id', visitorId);
+
     const base={latitude:lat,longitude:lng};
 
-    // First try the richer schema used by the tracker.
-    let r=await db.from('sightings').insert({
+    // Upsert on visitor_id so re-tracking moves YOUR pin instead of creating a new one.
+    let r=await db.from('sightings').upsert({
       ...base,
+      visitor_id:visitorId,
       label:'Live Sighting',
       color:'red',
       status:'active'
-    }).select().single();
+    },{onConflict:'visitor_id'}).select().single();
 
     // Fallback for a minimal table containing only coordinates.
     if(r.error){
@@ -1153,6 +1172,13 @@
     },function(payload){
       addRemoteSighting(payload.new);
       notify('🕷️ New sighting detected');
+    })
+    .on('postgres_changes',{
+      event:'UPDATE',
+      schema:'public',
+      table:'sightings'
+    },function(payload){
+      addRemoteSighting(payload.new);
     })
     .subscribe(function(status){
       if(status==='CHANNEL_ERROR') console.warn('SPIDY sightings realtime unavailable');
