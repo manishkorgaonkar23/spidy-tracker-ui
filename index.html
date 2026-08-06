@@ -224,14 +224,17 @@
   }
 
   .view-mode-badge{
-    position:absolute;top:12px;left:60px;z-index:1001;
-    padding:5px 8px;border:2px solid var(--frame-light);border-radius:4px;
-    background:rgba(5,34,51,.88);color:var(--ink);
-    font-family:'Press Start 2P',monospace;font-size:7px;pointer-events:none;
+    position:absolute;top:14px;left:60px;z-index:1001;
+    padding:0;border:none;border-radius:0;
+    background:transparent;color:var(--ink);
+    font-family:'VT323',monospace;font-size:13px;letter-spacing:1px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+    pointer-events:none;opacity:.85;
   }
 
   body.light-mode .view-mode-badge{
-    background:rgba(255,255,255,.9);color:#102a38;
+    background:transparent;color:#102a38;
+    text-shadow:0 1px 3px rgba(255,255,255,.9);
   }
 
   /* Spider pin marker (Leaflet divIcon wrapper + inner animated span) */
@@ -488,6 +491,7 @@
     <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
   </div>
 
+
   <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
 
   <div id="webOverlay" class="web-overlay">
@@ -520,7 +524,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/globe.gl@2.45.0/dist/globe.gl.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   /* ---------- Leaflet real world map ---------- */
@@ -680,15 +683,35 @@
     globe.atmosphereColor(light ? '#0f6e8c' : '#4fa8d8');
   }
 
+  let globeScriptLoading = null;
+  function loadGlobeScript(){
+    if(window.Globe) return Promise.resolve();
+    if(globeScriptLoading) return globeScriptLoading;
+    globeScriptLoading = new Promise(function(resolve, reject){
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/globe.gl@2.45.0/dist/globe.gl.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return globeScriptLoading;
+  }
+
   function show3D(){
-    initGlobe();
     is3D = true;
     document.getElementById('leafletMap').style.display = 'none';
     globeEl.style.display = 'block';
     view3dBtn.textContent = '2D';
-    viewModeBadge.textContent = '3D GLOBE';
-    updateGlobeTheme();
-    resizeGlobe();
+    viewModeBadge.textContent = 'LOADING 3D...';
+    loadGlobeScript().then(function(){
+      initGlobe();
+      updateGlobeTheme();
+      resizeGlobe();
+      viewModeBadge.textContent = '3D GLOBE';
+    }).catch(function(){
+      if(typeof showToast === 'function') showToast('Could not load 3D view — check connection');
+      show2D();
+    });
   }
 
   function show2D(){
@@ -834,6 +857,14 @@
     menuBtn.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') openAbout(); });
   }
 
+  /* ---------- CONNECTIVITY STATUS ---------- */
+  window.addEventListener('offline', function(){
+    if(typeof showToast === 'function') showToast('📡 No internet — sightings won\'t save until back online');
+  });
+  window.addEventListener('online', function(){
+    if(typeof showToast === 'function') showToast('✅ Back online');
+  });
+
   function showToast(msg){
     const toast = document.getElementById('toast');
     toast.textContent = msg;
@@ -957,7 +988,7 @@
     window.markers.forEach(function(m){
       const el=m.getElement(); if(!el) return;
       const d=center.distanceTo(m.getLatLng());
-      const hit=d<=500000;
+      const hit=d<=50000;
       const body=el.querySelector('.pin-body');
       if(body){body.classList.toggle('sense-hit',active&&hit)}
       if(hit) hits++;
@@ -968,11 +999,11 @@
     if(!active) return;
     if(!window.userMarker){status.textContent='🕷️ LOCATE YOURSELF TO START';return}
     const p=window.userMarker.getLatLng();
-    if(!senseCircle){senseCircle=L.circle(p,{radius:500000,color:'#ffb020',weight:2,opacity:.5,fillColor:'#ffb020',fillOpacity:.035,dashArray:'8 8'}).addTo(map)}else senseCircle.setLatLng(p);
+    if(!senseCircle){senseCircle=L.circle(p,{radius:50000,color:'#ffb020',weight:2,opacity:.5,fillColor:'#ffb020',fillOpacity:.035,dashArray:'8 8'}).addTo(map)}else senseCircle.setLatLng(p);
     const pt=map.latLngToContainerPoint(p);
     pulse.style.left=pt.x+'px';pulse.style.top=pt.y+'px';pulse.classList.add('active');
     const hits=highlightMarkers();
-    status.textContent='🕷️ SPIDER SENSE  •  '+hits+' SIGNAL'+(hits===1?'':'S')+' WITHIN 500 KM';
+    status.textContent='🕷️ SPIDER SENSE  •  '+hits+' SIGNAL'+(hits===1?'':'S')+' WITHIN 50 KM';
   }
   function start(){
     ui();active=true;btn.classList.add('active');btn.textContent='🕷️ SENSE ON';
@@ -1073,7 +1104,8 @@
   }
 
   async function loadRemoteSightings(){
-    const r=await db.from('sightings').select('*').order('created_at',{ascending:false}).limit(300);
+    const cutoff = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const r=await db.from('sightings').select('*').gte('created_at', cutoff).order('created_at',{ascending:false}).limit(300);
     if(r.error){
       console.warn('SPIDY sightings load:',r.error.message);
       return;
@@ -1113,10 +1145,28 @@
     return true;
   }
 
+  let trackCooldownUntil = 0;
+
   function trackNow(){
     if(!navigator.geolocation){
       notify('📍 GPS is not supported');
       return;
+    }
+    if(!navigator.onLine){
+      notify('📡 No internet connection — try again when online');
+      return;
+    }
+    const now = Date.now();
+    if(now < trackCooldownUntil){
+      notify('⏳ Please wait a few seconds before tracking again');
+      return;
+    }
+    trackCooldownUntil = now + 15000;
+
+    const trackButton = document.getElementById('trackNowBtn');
+    if(trackButton){ trackButton.style.opacity = '0.6'; trackButton.style.pointerEvents = 'none'; trackButton.textContent = 'LOCATING...'; }
+    function resetButton(){
+      if(trackButton){ trackButton.style.opacity = ''; trackButton.style.pointerEvents = ''; trackButton.textContent = 'TRACK NOW'; }
     }
 
     notify('📍 Getting your location...');
@@ -1140,6 +1190,7 @@
 
       const saved=await saveSighting(lat,lng);
       if(saved) notify('🕷️ Your sighting was saved');
+      resetButton();
     },function(err){
       const messages={
         1:'📍 Location permission denied',
@@ -1147,6 +1198,8 @@
         3:'📍 Location request timed out'
       };
       notify(messages[err.code] || '📍 Could not get your location');
+      resetButton();
+      trackCooldownUntil = 0;
     },{
       enableHighAccuracy:true,
       timeout:15000,
