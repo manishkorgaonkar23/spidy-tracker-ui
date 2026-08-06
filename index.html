@@ -575,54 +575,10 @@
     if(document.body.classList.contains('light-mode')) setMapTheme(true);
   }, 300);
 
-  const sightings = [
-    { lat: 40.71, lng: -74.00, color: 'white', label: 'New York', glow: true },
-    { lat: 34.05, lng: -118.24, color: 'red', label: 'Los Angeles' },
-    { lat: 19.43, lng: -99.13, color: 'red', label: 'Mexico City' },
-    { lat: -23.55, lng: -46.63, color: 'amber', label: 'Sao Paulo' },
-    { lat: -12.05, lng: -77.04, color: 'blue', label: 'Lima' },
-
-    { lat: 51.51, lng: -0.13, color: 'red', glow: true, label: 'London' },
-    { lat: 48.86, lng: 2.35, color: 'amber', label: 'Paris' },
-    { lat: 30.04, lng: 31.24, color: 'red', label: 'Cairo' },
-    { lat: -1.29, lng: 36.82, color: 'blue', label: 'Nairobi' },
-
-    { lat: 35.68, lng: 139.69, color: 'red', label: 'Tokyo' },
-    { lat: 39.90, lng: 116.41, color: 'amber', label: 'Beijing' },
-    { lat: 28.61, lng: 77.21, color: 'red', label: 'New Delhi' },
-    { lat: 1.35, lng: 103.82, color: 'blue', label: 'Singapore' },
-    { lat: 19.08, lng: 72.88, color: 'amber', label: 'Mumbai' },
-
-    { lat: -33.87, lng: 151.21, color: 'red', label: 'Sydney' },
-    { lat: -37.81, lng: 144.96, color: 'blue', label: 'Melbourne' }
-  ];
-
+  /* Real sightings only — populated live from Supabase (see tracking script below). */
   const markers = [];
-
-  sightings.forEach(function(s){
-    const icon = L.divIcon({
-      className: 'pin-marker',
-      html: '<span class="pin-body ' + s.color + (s.glow ? ' glow' : '') + '">🕸️</span><span class="pin-ring ' + s.color + '"></span>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
-    });
-    const marker = L.marker([s.lat, s.lng], { icon: icon }).addTo(map);
-    marker.on('click', function(){
-      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      beep();
-      speak('Web signal detected');
-      showToast(s.label + ' — signal detected');
-      const el = marker.getElement();
-      if(el){
-        const body = el.querySelector('.pin-body');
-        const ring = el.querySelector('.pin-ring');
-        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
-        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
-      }
-    });
-    markers.push(marker);
-  });
   window.markers = markers;
+  window.spidySightingsData = [];
 
   /* ---------- WORLD button: fly to India's prime locations ---------- */
   const indiaBounds = L.latLngBounds([
@@ -674,6 +630,7 @@
 <script>
   /* ---------- 3D Globe ---------- */
   let globe = null;
+  Object.defineProperty(window, 'globe', { get: function(){ return globe; }, configurable: true });
   let is3D = false;
 
   const globeEl = document.getElementById('globeMap');
@@ -683,13 +640,7 @@
   function initGlobe(){
     if(globe) return;
 
-    const data = sightings.map(function(s){
-      return {
-        lat:s.lat, lng:s.lng,
-        label:s.label,
-        color:s.color === 'red' ? '#e4453f' : (s.color === 'amber' ? '#ffb020' : '#4fa8d8')
-      };
-    });
+    const data = (window.spidySightingsData || []).slice();
 
     globe = Globe()(globeEl)
       .backgroundColor('#0a2a44')
@@ -1096,6 +1047,15 @@
       );
 
     sightingMarkers.set(key,marker);
+    if(window.markers) window.markers.push(marker);
+
+    if(window.spidySightingsData){
+      const colorHex = row.color === 'red' ? '#e4453f' : (row.color === 'amber' ? '#ffb020' : (row.color === 'blue' ? '#4fa8d8' : '#ffffff'));
+      window.spidySightingsData.push({ lat:c.lat, lng:c.lng, label:row.label || 'Spidy Sighting', color:colorHex });
+      if(window.globe && typeof window.globe.pointsData === 'function'){
+        window.globe.pointsData(window.spidySightingsData);
+      }
+    }
   }
 
   async function loadRemoteSightings(){
