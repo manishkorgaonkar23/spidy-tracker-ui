@@ -44,6 +44,7 @@
     background:#e88a2b;
     border:3px solid #05202e;
     display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
   }
   .menu-btn div{ width:20px; height:3px; background:#3a1c00; box-shadow:0 6px 0 #3a1c00, 0 -6px 0 #3a1c00; }
 
@@ -429,7 +430,7 @@
 <div class="app">
 
   <div class="header">
-    <div class="menu-btn"><div></div></div>
+    <div class="menu-btn" id="menuBtn" role="button" tabindex="0" aria-label="About Spidy Tracker"><div></div></div>
     <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE <span id="visitorCount">0</span></div></div>
     <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">☀️</button>
     <div class="spider-btn" id="dropBtn">
@@ -869,6 +870,17 @@
       overlay.classList.remove('animate');
     }, 1650);
   });
+
+  /* ---------- MENU / ABOUT ---------- */
+  const menuBtn = document.getElementById('menuBtn');
+  if(menuBtn){
+    function openAbout(){
+      const total = (window.markers && window.markers.length) || 0;
+      showToast('SPIDY TRACKER — ' + total + ' live sighting(s) on the map. Tap TRACK NOW to add yours.');
+    }
+    menuBtn.addEventListener('click', openAbout);
+    menuBtn.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') openAbout(); });
+  }
 
   function showToast(msg){
     const toast = document.getElementById('toast');
