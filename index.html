@@ -931,12 +931,41 @@
   if(!window.supabase) return;
 
   const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-  const idKey = 'spidy-visitor-id';
-  let visitorId = localStorage.getItem(idKey);
-  if(!visitorId){
-    visitorId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
-    localStorage.setItem(idKey, visitorId);
+
+  // Device fingerprint: combines hardware/OS signals that are shared across
+  // browsers on the SAME physical device (screen, timezone, CPU, language)
+  // so opening the site in Chrome + Firefox on one phone counts as ONE
+  // live visitor. Not 100% guaranteed (browsers sandbox their storage and
+  // some signals can vary slightly), but matches in the vast majority of cases.
+  function deviceFingerprint(){
+    try{
+      const parts = [
+        screen.width, screen.height, screen.colorDepth,
+        window.devicePixelRatio || 1,
+        navigator.hardwareConcurrency || 0,
+        navigator.platform || '',
+        navigator.language || '',
+        Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        navigator.maxTouchPoints || 0
+      ].join('|');
+      let hash = 0;
+      for(let i = 0; i < parts.length; i++){
+        hash = ((hash << 5) - hash + parts.charCodeAt(i)) | 0;
+      }
+      return 'dev-' + Math.abs(hash).toString(36);
+    }catch(e){
+      // Fallback: if fingerprinting fails for any reason, behave like before.
+      const idKey = 'spidy-visitor-id';
+      let id = localStorage.getItem(idKey);
+      if(!id){
+        id = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
+        localStorage.setItem(idKey, id);
+      }
+      return id;
+    }
   }
+
+  const visitorId = deviceFingerprint();
 
   const countEl = document.getElementById('visitorCount');
   function setCount(n){ if(countEl) countEl.textContent = String(n || 0); }
