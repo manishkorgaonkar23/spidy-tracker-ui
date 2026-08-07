@@ -238,6 +238,8 @@
   }
 
   /* Spider pin marker (Leaflet divIcon wrapper + inner animated span) */
+  .pin-body svg{ width:19px; height:15px; display:block; color:#fff; }
+  .pin-body.white svg{ color:#0a0a0a; }
   .pin-body{
     position:relative;
     width:34px; height:34px;
@@ -438,7 +440,7 @@
     <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE <span id="visitorCount">0</span></div></div>
     <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">☀️</button>
     <div class="spider-btn" id="dropBtn">
-      🕸️
+      🕷️
       <div class="drop-thread" id="dropThread"></div>
       <div class="drop-spider" id="dropSpider">🕷️</div>
     </div>
@@ -618,7 +620,7 @@
       }
       const icon = L.divIcon({
         className: 'pin-marker',
-        html: '<span class="pin-body white glow">🕸️</span><span class="pin-ring blue"></span>',
+        html: '<span class="pin-body white glow"><svg viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"><path d="M44,38 C30,30 18,20 6,8"/><path d="M42,46 C26,42 12,38 2,36"/><path d="M42,56 C26,58 12,62 2,66"/><path d="M44,64 C30,72 18,82 8,94"/><path d="M56,38 C70,30 82,20 94,8"/><path d="M58,46 C74,42 88,38 98,36"/><path d="M58,56 C74,58 88,62 98,66"/><path d="M56,64 C70,72 82,82 92,94"/></g><circle cx="50" cy="38" r="7" fill="currentColor"/><polygon points="50,44 62,52 60,72 50,86 40,72 38,52" fill="currentColor"/></svg></span><span class="pin-ring blue"></span>',
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });
@@ -1089,9 +1091,8 @@
 
   function iconFor(color){
     const safe=['red','amber','blue','white'].includes(color)?color:'red';
-    return L.divIcon({
-      className:'pin-marker',
-      html:'<span class="pin-body '+safe+'">🕷️<span class="pin-ring '+safe+'"></span></span>',
+    return L.divIcon({      className:'pin-marker',
+      html:'<span class="pin-body '+safe+'"><svg viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"><path d="M44,38 C30,30 18,20 6,8"/><path d="M42,46 C26,42 12,38 2,36"/><path d="M42,56 C26,58 12,62 2,66"/><path d="M44,64 C30,72 18,82 8,94"/><path d="M56,38 C70,30 82,20 94,8"/><path d="M58,46 C74,42 88,38 98,36"/><path d="M58,56 C74,58 88,62 98,66"/><path d="M56,64 C70,72 82,82 92,94"/></g><circle cx="50" cy="38" r="7" fill="currentColor"/><polygon points="50,44 62,52 60,72 50,86 40,72 38,52" fill="currentColor"/></svg><span class="pin-ring '+safe+'"></span></span>',
       iconSize:[32,32],
       iconAnchor:[16,16]
     });
@@ -1213,7 +1214,7 @@
       if(window.userMarker) map.removeLayer(window.userMarker);
       const icon=L.divIcon({
         className:'pin-marker',
-        html:'<span class="pin-body white glow">🕸️</span>',
+        html:'<span class="pin-body white glow"><svg viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"><path d="M44,38 C30,30 18,20 6,8"/><path d="M42,46 C26,42 12,38 2,36"/><path d="M42,56 C26,58 12,62 2,66"/><path d="M44,64 C30,72 18,82 8,94"/><path d="M56,38 C70,30 82,20 94,8"/><path d="M58,46 C74,42 88,38 98,36"/><path d="M58,56 C74,58 88,62 98,66"/><path d="M56,64 C70,72 82,82 92,94"/></g><circle cx="50" cy="38" r="7" fill="currentColor"/><polygon points="50,44 62,52 60,72 50,86 40,72 38,52" fill="currentColor"/></svg></span>',
         iconSize:[32,32],
         iconAnchor:[16,16]
       });
