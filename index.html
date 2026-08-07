@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIDY TRACKER — World</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+  :root{
+    --theme-bg: #04202f;
+    --theme-map-bg: #0a2a44;
+    --theme-map-filter: var(--theme-map-filter);
+    --frame: #0f6e8c;
+    --frame-light: #1ea3c9;
+    --map-bg: #0a2a44;
+    --map-line: #14405f;
+    --amber: #ffb020;
+    --red: #e4453f;
+    --green: #4fbf7a;
+    --blue: #4fa8d8;
+    --ink: #dff3fb;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; image-rendering:pixelated; }
+  html,body{ background:var(--theme-bg); height:100%; font-family:'VT323',monospace; }
+
+  .app{
+    max-width:430px; margin:0 auto; min-height:100vh;
+    background:var(--frame);
+    display:flex; flex-direction:column;
+    border-left:6px solid var(--frame-light);
+    border-right:6px solid var(--frame-light);
+  }
+
+  /* ---------- Header ---------- */
+  .header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 14px 10px;
+  }
+  .menu-btn{
+    width:44px; height:44px; border-radius:50%;
+    background:#e88a2b;
+    border:3px solid #05202e;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .menu-btn div{ width:20px; height:3px; background:#3a1c00; box-shadow:0 6px 0 #3a1c00, 0 -6px 0 #3a1c00; }
+
+  .title-plate{
+    flex:1; margin:0 10px;
+    background:#052233;
+    border:3px solid var(--frame-light);
+    border-radius:4px;
+    text-align:center;
+    padding:8px 4px;
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    color:var(--ink);
+    letter-spacing:1px;
+  }
+  .title-plate .accent{ color:var(--red); }
+
+  .live-badge{
+    display:flex; align-items:center; justify-content:center; gap:5px;
+    margin-top:4px;
+    font-family:'VT323',monospace;
+    font-size:12px;
+    color:var(--green);
+    letter-spacing:1px;
+  }
+  .live-badge .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--green);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  @keyframes blink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.25; }
+  }
+
+  .spider-btn{
+    width:44px; height:44px; border-radius:8px;
+    background:#eef2f5;
+    border:3px solid #05202e;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px;
+    position:relative;
+    cursor:pointer;
+    z-index:2000;
+  }
+
+  .drop-thread{
+    position:absolute;
+    left:50%;
+    top:100%;
+    width:1.5px;
+    background:rgba(223,243,251,0.6);
+    height:0;
+    transform:translateX(-50%);
+    pointer-events:none;
+  }
+  .drop-thread.animate{
+    animation: threadDrop 1.8s ease-in-out forwards;
+  }
+  @keyframes threadDrop{
+    0%{ height:0; }
+    45%{ height:170px; }
+    75%{ height:170px; }
+    100%{ height:0; }
+  }
+
+  .drop-spider{
+    position:absolute;
+    left:50%;
+    top:100%;
+    font-size:22px;
+    transform:translate(-50%, 0);
+    pointer-events:none;
+    opacity:0;
+  }
+  .drop-spider.animate{
+    animation: spiderDrop 1.8s ease-in-out forwards;
+  }
+  @keyframes spiderDrop{
+    0%{ top:100%; opacity:0; }
+    10%{ opacity:1; }
+    45%{ top:calc(100% + 170px); opacity:1; }
+    55%{ top:calc(100% + 155px); }
+    62%{ top:calc(100% + 170px); }
+    75%{ top:calc(100% + 170px); opacity:1; }
+    100%{ top:100%; opacity:0; }
+  }
+
+  /* ---------- Map ---------- */
+  .map-frame{
+    margin:0 10px;
+    border:5px solid #04405c;
+    border-radius:8px;
+    position:relative;
+    overflow:hidden;
+    height:420px;
+  }
+  #leafletMap{
+    width:100%; height:100%;
+    background:#0a2a44;
+  }
+  /* dim/tint the OSM tiles to match app palette */
+  #leafletMap .leaflet-baseTiles-pane{
+    filter: var(--theme-map-filter);
+  }
+  #leafletMap .leaflet-labelsPane-pane{
+    filter: brightness(1.05) contrast(1.1);
+  }
+  .leaflet-control-attribution{
+    background:rgba(5,32,46,0.75) !important;
+    color:rgba(223,243,251,0.6) !important;
+    font-family:'VT323',monospace !important;
+    font-size:11px !important;
+  }
+  .leaflet-control-attribution a{ color:var(--frame-light) !important; }
+  .leaflet-control-zoom a{
+    background:#052233 !important;
+    color:var(--ink) !important;
+    border-color:rgba(255,255,255,0.15) !important;
+  }
+
+  .spider-marker{
+    font-size:20px;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.6));
+    text-align:center;
+    line-height:1;
+  }
+
+  .label{
+    position:absolute;
+    font-size:11.5px;
+    color:rgba(223,243,251,0.4);
+    letter-spacing:0.3px;
+  }
+
+  .mapcredit{
+    position:absolute; left:14px; bottom:10px;
+    font-size:15px; color:rgba(223,243,251,0.55);
+  }
+
+  .theme-btn{
+    width:44px;height:44px;border-radius:8px;background:#eef2f5;
+    border:3px solid #05202e;display:flex;align-items:center;
+    justify-content:center;font-size:20px;cursor:pointer;flex:0 0 auto;
+  }
+
+  body.light-mode{
+    --theme-bg:#eef4f7;
+    --theme-map-bg:#dbe8ee;
+    --theme-map-filter:brightness(1) saturate(.75) contrast(1);
+  }
+
+  body.light-mode .title-plate,
+  body.light-mode .share-plate{background:#fff;color:#102a38;}
+
+  body.light-mode .theme-btn,
+  body.light-mode .spider-btn{background:#fff;}
+
+  body.light-mode .leaflet-control-zoom a{
+    background:#fff !important;color:#102a38 !important;
+    border-color:#9bb3bf !important;
+  }
+
+  body.light-mode .leaflet-control-attribution{
+    background:rgba(255,255,255,.88) !important;color:#35505d !important;
+  }
+
+  #globeMap{
+    position:absolute;inset:0;display:none;background:var(--theme-map-bg);z-index:2;
+  }
+
+  .view3d-btn{
+    position:absolute;top:10px;left:10px;z-index:1001;
+    padding:8px 12px;border:3px solid #05202e;border-radius:5px;
+    background:var(--amber);color:#3a1c00;
+    font-family:'Press Start 2P',monospace;font-size:8px;cursor:pointer;
+  }
+
+  .view-mode-badge{
+    position:absolute;top:14px;left:60px;z-index:1001;
+    padding:0;border:none;border-radius:0;
+    background:transparent;color:var(--ink);
+    font-family:'VT323',monospace;font-size:13px;letter-spacing:1px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+    pointer-events:none;opacity:.85;
+  }
+
+  body.light-mode .view-mode-badge{
+    background:transparent;color:#102a38;
+    text-shadow:0 1px 3px rgba(255,255,255,.9);
+  }
+
+  /* Spider pin marker (Leaflet divIcon wrapper + inner animated span) */
+  .pin-body{
+    position:relative;
+    width:34px; height:34px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    border:2.5px solid #04202f;
+    font-size:17px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.45), inset 0 1px 2px rgba(255,255,255,0.25);
+    animation: pinPulse 3s ease-in-out infinite;
+  }
+  @keyframes pinPulse{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.08); }
+  }
+  .pin-body.red{ background:radial-gradient(circle at 35% 30%, #ff6b63, var(--red)); animation-delay:0s; }
+  .pin-body.amber{ background:radial-gradient(circle at 35% 30%, #ffcf6b, var(--amber)); animation-delay:0.6s; }
+  .pin-body.blue{ background:radial-gradient(circle at 35% 30%, #8ecdf0, var(--blue)); animation-delay:1.2s; }
+  .pin-body.white{ background:radial-gradient(circle at 35% 30%, #ffffff, #eef2f5); }
+  .pin-body.glow{ filter:drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+  .pin-body.tap{ animation: pinTap 0.25s ease-out; }
+  @keyframes pinTap{
+    0%{ transform:scale(1); }
+    50%{ transform:scale(1.6); }
+    100%{ transform:scale(1); }
+  }
+
+  .pin-ring{
+    position:absolute; inset:0;
+    border-radius:50%;
+    border:2px solid currentColor;
+    opacity:0;
+    animation: ringOut 3s ease-out infinite;
+    pointer-events:none;
+  }
+  .pin-ring.red{ color:var(--red); animation-delay:0s; }
+  .pin-ring.amber{ color:var(--green); animation-delay:0.6s; }
+  .pin-ring.blue{ color:var(--blue); animation-delay:1.2s; }
+  @keyframes ringOut{
+    0%{ transform:scale(1); opacity:0.55; }
+    100%{ transform:scale(2.1); opacity:0; }
+  }
+  .pin-ring.burst{
+    animation: ringBurst 0.6s ease-out forwards;
+  }
+  @keyframes ringBurst{
+    0%{ transform:scale(1); opacity:0.9; }
+    100%{ transform:scale(2.2); opacity:0; }
+  }
+
+  /* mini web radar, bottom right of map */
+  .radar{
+    position:absolute; right:3%; bottom:3%;
+    width:52px; height:52px;
+  }
+  .radar svg{ width:100%; height:100%; opacity:0.9; }
+  .radar .rr{ fill:none; stroke:var(--frame-light); stroke-width:1; opacity:0.7; }
+  .radar .rs{ stroke:var(--frame-light); stroke-width:1; opacity:0.6; }
+  .radar .dot-r{ fill:var(--red); }
+  .radar .dot-g{ fill:var(--green); }
+  .radar .sweep-line{
+    stroke:var(--amber); stroke-width:2;
+    transform-origin:50px 50px;
+    animation: sweepRotate 3s linear infinite;
+  }
+  @keyframes sweepRotate{
+    to{ transform:rotate(360deg); }
+  }
+  .radar-icon{
+    position:absolute;
+    width:26px; height:26px; border-radius:50%;
+    background:#052233; border:2px solid var(--frame-light);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .radar-icon.globe{ right:-6px; top:34px; }
+  .radar-icon.target{ right:16px; bottom:-8px; }
+  .radar-icon svg{ width:14px; height:14px; }
+
+  .foot-links{
+    position:absolute; left:0; right:0; bottom:0;
+    display:flex; gap:6px; padding:6px 8px;
+    font-size:11px; color:#0a2a3c;
+  }
+  .foot-links span{
+    background:rgba(223,243,251,0.75);
+    padding:2px 8px; border-radius:2px;
+  }
+
+  /* ---------- Bottom bar ---------- */
+  .bottom-bar{
+    display:flex; align-items:center; gap:10px;
+    padding:14px 14px 10px;
+  }
+  .mascot{
+    width:50px; height:50px; border-radius:10px;
+    background:var(--red);
+    border:3px solid #05202e;
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px;
+  }
+  .share-plate{
+    flex:1;
+    background:#04202f;
+    border:3px solid var(--frame-light);
+    border-radius:6px;
+    padding:10px 14px;
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    color:var(--ink);
+    letter-spacing:1px;
+    text-align:center;
+  }
+  .audio-btn{
+    width:50px; height:50px; border-radius:10px;
+    background:var(--green);
+    border:3px solid #05202e;
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .cta-row{
+    display:flex; gap:10px;
+    padding:0 14px 18px;
+  }
+  .cta{
+    flex:1;
+    background:var(--amber);
+    border:3px solid #05202e;
+    border-radius:4px;
+    text-align:center;
+    padding:12px 6px;
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    color:#3a1c00;
+    letter-spacing:0.5px;
+  }
+
+  /* ---------- Web spread overlay ---------- */
+  .web-overlay{
+    position:fixed;
+    inset:0;
+    z-index:40;
+    pointer-events:none;
+    opacity:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .web-overlay.animate{
+    animation: webOverlayFade 1.6s ease-out forwards;
+  }
+  @keyframes webOverlayFade{
+    0%{ opacity:0; }
+    12%{ opacity:1; }
+    70%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+  #webSvg{
+    width:100%; height:100%;
+    transform: scale(0);
+    transform-origin: 50% 100%;
+  }
+  .web-overlay.animate #webSvg{
+    animation: webScaleUp 1.6s cubic-bezier(0.2,0.8,0.3,1) forwards;
+  }
+  @keyframes webScaleUp{
+    0%{ transform: scale(0); }
+    60%{ transform: scale(1.15); }
+    80%{ transform: scale(1); }
+    100%{ transform: scale(1); }
+  }
+  .web-spoke{
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    opacity: 0.85;
+  }
+  .web-ring{
+    fill:none;
+    stroke: var(--ink);
+    stroke-width: 0.4;
+    opacity: 0.7;
+  }
+</style>
+
+<style id="spiderSenseCSS">
+.spider-sense-btn{position:absolute;top:10px;right:10px;z-index:1002;padding:8px 10px;border:3px solid #05202e;border-radius:5px;background:#052233;color:#dff3fb;font-family:'Press Start 2P',monospace;font-size:7px;cursor:pointer;box-shadow:0 0 0 rgba(79,168,216,0);transition:.2s}.spider-sense-btn.active{background:#ffb020;color:#3a1c00;box-shadow:0 0 16px rgba(255,176,32,.65)}
+.spider-sense-status{position:absolute;left:50%;top:48px;transform:translateX(-50%);z-index:1002;background:rgba(5,34,51,.94);border:2px solid #1ea3c9;color:#dff3fb;padding:5px 9px;border-radius:4px;font-family:'VT323',monospace;font-size:15px;letter-spacing:1px;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}.spider-sense-status.show{opacity:1}
+.spider-sense-pulse{position:absolute;z-index:1001;width:18px;height:18px;border:2px solid #ffb020;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;display:none;animation:sensePulse 2s ease-out infinite}.spider-sense-pulse.active{display:block}@keyframes sensePulse{0%{width:18px;height:18px;opacity:.9}70%{width:250px;height:250px;opacity:.18}100%{width:300px;height:300px;opacity:0}}
+.pin-body.sense-hit{animation:senseHit .65s ease-in-out infinite alternate!important;filter:drop-shadow(0 0 10px rgba(255,176,32,.95))!important}@keyframes senseHit{to{transform:scale(1.35)}}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="menu-btn" id="menuBtn" role="button" tabindex="0" aria-label="About Spidy Tracker"><div></div></div>
+    <div class="title-plate">SPIDY<span class="accent">••</span>TRACKER<div class="live-badge"><span class="dot"></span>LIVE <span id="visitorCount">0</span></div></div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to light mode" title="Switch theme">☀️</button>
+    <div class="spider-btn" id="dropBtn">
+      🕸️
+      <div class="drop-thread" id="dropThread"></div>
+      <div class="drop-spider" id="dropSpider">🕷️</div>
+    </div>
+  </div>
+
+  <div class="map-frame">
+    <div id="leafletMap"></div>
+    <div id="globeMap"></div>
+    <button id="view3dBtn" class="view3d-btn" type="button">3D</button>
+    <button id="spiderSenseBtn" class="spider-sense-btn" type="button">🕷️ SENSE</button>
+    <div id="viewModeBadge" class="view-mode-badge">2D MAP</div>
+
+    <div class="radar" style="z-index:1000;">
+      <svg viewBox="0 0 100 100">
+        <polygon class="rr" points="50,10 82,25 90,55 68,85 32,85 10,55 18,25"/>
+        <polygon class="rr" points="50,25 70,34 76,54 62,72 38,72 24,54 30,34"/>
+        <polygon class="rr" points="50,38 60,42 63,52 56,62 44,62 37,52 40,42"/>
+        <line class="rs" x1="50" y1="50" x2="50" y2="10"/>
+        <line class="rs" x1="50" y1="50" x2="82" y2="25"/>
+        <line class="rs" x1="50" y1="50" x2="90" y2="55"/>
+        <line class="rs" x1="50" y1="50" x2="68" y2="85"/>
+        <line class="rs" x1="50" y1="50" x2="32" y2="85"/>
+        <line class="rs" x1="50" y1="50" x2="10" y2="55"/>
+        <line class="rs" x1="50" y1="50" x2="18" y2="25"/>
+        <circle class="dot-r" cx="30" cy="24" r="3"/>
+        <circle class="dot-r" cx="24" cy="30" r="3"/>
+        <circle class="dot-g" cx="26" cy="62" r="3"/>
+        <circle class="dot-g" cx="34" cy="70" r="3"/>
+        <line class="sweep-line" x1="50" y1="50" x2="50" y2="10"/>
+      </svg>
+      <div class="radar-icon globe" id="worldBtn" style="cursor:pointer;">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#dff3fb" stroke-width="1.5"/><line x1="3" y1="12" x2="21" y2="12" stroke="#dff3fb" stroke-width="1.2"/><path d="M12,3 C7,7 7,17 12,21 C17,17 17,7 12,3" fill="none" stroke="#dff3fb" stroke-width="1.2"/></svg>
+      </div>
+      <div class="radar-icon target" id="locateBtn" style="cursor:pointer;">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#dff3fb" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#dff3fb"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="mascot" id="mascotBtn" style="cursor:pointer;">🕸️</div>
+    <div class="share-plate" id="shareBtn" style="cursor:pointer;">SHARE YOUR WEB</div>
+    <div class="audio-btn" id="audioBtn" style="cursor:pointer;">
+      <svg id="audioIcon" viewBox="0 0 24 24"><path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><path d="M16,8 C19,10.5 19,13.5 16,16" fill="none" stroke="#052233" stroke-width="1.8"/></svg>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <div class="cta" id="liveMapBtn" style="cursor:pointer;">LIVE MAP</div>
+    <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
+  </div>
+
+
+  <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
+
+  <div id="webOverlay" class="web-overlay">
+    <svg id="webSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+      <line class="web-spoke" x1="50" y1="50" x2="50" y2="-30"/>
+      <line class="web-spoke" x1="50" y1="50" x2="78" y2="-22"/>
+      <line class="web-spoke" x1="50" y1="50" x2="107" y2="7"/>
+      <line class="web-spoke" x1="50" y1="50" x2="122" y2="28"/>
+      <line class="web-spoke" x1="50" y1="50" x2="130" y2="50"/>
+      <line class="web-spoke" x1="50" y1="50" x2="122" y2="72"/>
+      <line class="web-spoke" x1="50" y1="50" x2="107" y2="93"/>
+      <line class="web-spoke" x1="50" y1="50" x2="78" y2="122"/>
+      <line class="web-spoke" x1="50" y1="50" x2="50" y2="130"/>
+      <line class="web-spoke" x1="50" y1="50" x2="22" y2="122"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-7" y2="93"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-22" y2="72"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-30" y2="50"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-22" y2="28"/>
+      <line class="web-spoke" x1="50" y1="50" x2="-7" y2="7"/>
+      <line class="web-spoke" x1="50" y1="50" x2="22" y2="-22"/>
+      <polygon class="web-ring" points="50,5 71,10 86,14 96,26 100,50 96,74 86,86 71,96 50,100 29,96 14,86 4,74 0,50 4,26 14,14 29,10"/>
+      <polygon class="web-ring" points="50,15 79,26 90,50 79,74 50,85 21,74 10,50 21,26"/>
+      <polygon class="web-ring" points="50,24 68,32 76,50 68,68 50,76 32,68 24,50 32,32"/>
+      <polygon class="web-ring" points="50,32 66,38 72,50 66,62 50,68 34,62 28,50 34,38"/>
+      <polygon class="web-ring" points="50,40 58,44 60,50 58,56 50,60 42,56 40,50 42,44"/>
+      <polygon class="web-ring" points="50,48 54,49 55,50 54,51 50,52 46,51 45,50 46,49"/>
+    </svg>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  /* ---------- Leaflet real world map ---------- */
+  if(typeof L === 'undefined'){
+    document.getElementById('leafletMap').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center;color:#dff3fb;font-family:VT323,monospace;font-size:18px;">⚠️ Map library failed to load.<br>Check your internet connection and refresh.</div>';
+    throw new Error('Leaflet (L) failed to load — aborting map init.');
+  }
+  const map = L.map('leafletMap', {
+    zoomControl: true,
+    attributionControl: true,
+    worldCopyJump: true
+  }).setView([20, 10], 2);
+
+  map.createPane('baseTiles');
+  map.getPane('baseTiles').style.zIndex = 200;
+  map.createPane('labelsPane');
+  map.getPane('labelsPane').style.zIndex = 400;
+  map.getPane('labelsPane').style.pointerEvents = 'none';
+
+  const darkBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
+  }).addTo(map);
+
+  const darkLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
+  }).addTo(map);
+
+  const lightBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
+  });
+
+  const lightLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
+  });
+
+  function setMapTheme(light){
+    if(light){
+      if(map.hasLayer(darkBaseTiles)) map.removeLayer(darkBaseTiles);
+      if(map.hasLayer(darkLabels)) map.removeLayer(darkLabels);
+      lightBaseTiles.addTo(map);
+      lightLabels.addTo(map);
+    }else{
+      if(map.hasLayer(lightBaseTiles)) map.removeLayer(lightBaseTiles);
+      if(map.hasLayer(lightLabels)) map.removeLayer(lightLabels);
+      darkBaseTiles.addTo(map);
+      darkLabels.addTo(map);
+    }
+    map.invalidateSize();
+  }
+
+  setTimeout(function(){
+    map.invalidateSize();
+    if(document.body.classList.contains('light-mode')) setMapTheme(true);
+  }, 300);
+
+  /* Real sightings only — populated live from Supabase (see tracking script below). */
+  const markers = [];
+  window.markers = markers;
+  window.spidySightingsData = [];
+
+  /* ---------- WORLD button: fly to India's prime locations ---------- */
+  const indiaBounds = L.latLngBounds([
+    [8.0, 68.0],   // south-west (near Kanyakumari / Gujarat coast)
+    [35.0, 97.5]   // north-east (near Kashmir / Arunachal)
+  ]);
+
+  document.getElementById('worldBtn').addEventListener('click', function(){
+    map.flyToBounds(indiaBounds, { padding: [20, 20], duration: 1.2 });
+    if(typeof showToast === 'function') showToast('Showing India — prime locations');
+    if(typeof beep === 'function') beep();
+  });
+
+  /* ---------- TARGET button: locate the user precisely ---------- */
+  let userMarker = null;
+  document.getElementById('locateBtn').addEventListener('click', function(){
+    if(!navigator.geolocation){
+      if(typeof showToast === 'function') showToast('Location not supported');
+      return;
+    }
+    if(typeof showToast === 'function') showToast('Locating you...');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      if(userMarker){
+        map.removeLayer(userMarker);
+      }
+      const icon = L.divIcon({
+        className: 'pin-marker',
+        html: '<span class="pin-body white glow">🕸️</span><span class="pin-ring blue"></span>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      userMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+      window.userMarker = userMarker;
+      if(window.spiderSenseUpdate) setTimeout(window.spiderSenseUpdate, 100);
+
+      map.flyTo([lat, lng], 12, { duration: 1.2 });
+      if(typeof showToast === 'function') showToast('You are here');
+      if(typeof beep === 'function') beep();
+      if(typeof speak === 'function') speak('Location detected');
+    }, function(err){
+      if(typeof showToast === 'function') showToast('Could not get location');
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  });
+
+</script>
+<script>
+  /* ---------- 3D Globe ---------- */
+  let globe = null;
+  Object.defineProperty(window, 'globe', { get: function(){ return globe; }, configurable: true });
+  let is3D = false;
+
+  const globeEl = document.getElementById('globeMap');
+  const view3dBtn = document.getElementById('view3dBtn');
+  const viewModeBadge = document.getElementById('viewModeBadge');
+
+  function initGlobe(){
+    if(globe) return;
+
+    const data = (window.spidySightingsData || []).slice();
+
+    globe = Globe()(globeEl)
+      .backgroundColor('#0a2a44')
+      .showAtmosphere(true)
+      .atmosphereColor('#4fa8d8')
+      .atmosphereAltitude(0.12)
+      .pointsData(data)
+      .pointLat('lat')
+      .pointLng('lng')
+      .pointColor('color')
+      .pointRadius(0.55)
+      .pointAltitude(0.025)
+      .pointLabel(function(d){ return d.label + ' — signal'; })
+      .onPointClick(function(d){
+        if(typeof beep === 'function') beep();
+        if(typeof speak === 'function') speak('Web signal detected');
+        if(typeof showToast === 'function') showToast(d.label + ' — signal detected');
+      });
+
+    globe.controls().enableDamping = true;
+    globe.controls().dampingFactor = 0.08;
+    globe.controls().autoRotate = false;
+    resizeGlobe();
+  }
+
+  function resizeGlobe(){
+    if(!globe) return;
+    globe.width(globeEl.clientWidth);
+    globe.height(globeEl.clientHeight);
+  }
+
+  function updateGlobeTheme(){
+    if(!globe) return;
+    const light = document.body.classList.contains('light-mode');
+    globe.backgroundColor(light ? '#dbe8ee' : '#0a2a44');
+    globe.atmosphereColor(light ? '#0f6e8c' : '#4fa8d8');
+  }
+
+  let globeScriptLoading = null;
+  function loadGlobeScript(){
+    if(window.Globe) return Promise.resolve();
+    if(globeScriptLoading) return globeScriptLoading;
+    globeScriptLoading = new Promise(function(resolve, reject){
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/globe.gl@2.45.0/dist/globe.gl.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return globeScriptLoading;
+  }
+
+  function show3D(){
+    is3D = true;
+    document.getElementById('leafletMap').style.display = 'none';
+    globeEl.style.display = 'block';
+    view3dBtn.textContent = '2D';
+    viewModeBadge.textContent = 'LOADING 3D...';
+    loadGlobeScript().then(function(){
+      initGlobe();
+      updateGlobeTheme();
+      resizeGlobe();
+      viewModeBadge.textContent = '3D GLOBE';
+    }).catch(function(){
+      if(typeof showToast === 'function') showToast('Could not load 3D view — check connection');
+      show2D();
+    });
+  }
+
+  function show2D(){
+    is3D = false;
+    globeEl.style.display = 'none';
+    document.getElementById('leafletMap').style.display = 'block';
+    view3dBtn.textContent = '3D';
+    viewModeBadge.textContent = '2D MAP';
+    setTimeout(function(){ map.invalidateSize(); }, 60);
+  }
+
+  view3dBtn.addEventListener('click', function(){
+    if(is3D) show2D(); else show3D();
+  });
+
+  window.addEventListener('resize', resizeGlobe);
+</script>
+
+<script>
+  (function(){
+    const btn=document.getElementById('themeBtn');
+    const saved=localStorage.getItem('spidy-theme');
+    if(saved==='light') document.body.classList.add('light-mode');
+    function sync(){
+      const light=document.body.classList.contains('light-mode');
+      btn.textContent=light?'🌙':'☀️';
+      if(typeof setMapTheme==='function') setMapTheme(light);
+      if(typeof updateGlobeTheme==='function') updateGlobeTheme();
+    }
+    sync();
+    btn.addEventListener('click',function(){
+      const light=document.body.classList.toggle('light-mode');
+      localStorage.setItem('spidy-theme',light?'light':'dark');
+      sync();
+    });
+  })();
+</script>
+<script>
+  let audioCtx = null;
+  let soundOn = false;
+  let beepInterval = null;
+
+  function beep(){
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+  }
+
+  document.getElementById('audioBtn').addEventListener('click', function(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    soundOn = !soundOn;
+    const icon = document.getElementById('audioIcon');
+
+    if(soundOn){
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      beep();
+      beepInterval = setInterval(beep, 1500);
+      icon.innerHTML = '<path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><path d="M16,7 C20,10.5 20,13.5 16,17" fill="none" stroke="#052233" stroke-width="1.8"/><path d="M19,4 C25,9 25,15 19,20" fill="none" stroke="#052233" stroke-width="1.8"/>';
+    } else {
+      clearInterval(beepInterval);
+      icon.innerHTML = '<path d="M3,9 L8,9 L13,4 L13,20 L8,15 L3,15 Z" fill="#052233"/><line x1="16" y1="7" x2="22" y2="17" stroke="#052233" stroke-width="1.8"/><line x1="22" y1="7" x2="16" y2="17" stroke="#052233" stroke-width="1.8"/>';
+    }
+  });
+
+  let voices = [];
+  function loadVoices(){ voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; }
+  if('speechSynthesis' in window){
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function speak(text){
+    if(!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    u.pitch = 0.9;
+    u.volume = 1;
+    if(voices.length){
+      const enVoice = voices.find(function(v){ return v.lang && v.lang.indexOf('en') === 0; });
+      if(enVoice) u.voice = enVoice;
+    }
+    window.speechSynthesis.speak(u);
+  }
+
+  /* ---------- Header spider drop animation ---------- */
+  document.getElementById('dropBtn').addEventListener('click', function(){
+    const thread = document.getElementById('dropThread');
+    const spider = document.getElementById('dropSpider');
+
+    thread.classList.remove('animate');
+    spider.classList.remove('animate');
+    void thread.offsetWidth; // restart animation
+    void spider.offsetWidth;
+
+    thread.classList.add('animate');
+    spider.classList.add('animate');
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    speak('Web signal detected');
+
+    setTimeout(function(){
+      thread.classList.remove('animate');
+      spider.classList.remove('animate');
+    }, 1900);
+  });
+
+  document.getElementById('mascotBtn').addEventListener('click', function(){
+    const overlay = document.getElementById('webOverlay');
+    overlay.classList.remove('animate');
+    void overlay.offsetWidth;
+    overlay.classList.add('animate');
+
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    beep();
+    showToast('Web spread across the grid');
+
+    setTimeout(function(){
+      overlay.classList.remove('animate');
+    }, 1650);
+  });
+
+  /* ---------- MENU / ABOUT ---------- */
+  const menuBtn = document.getElementById('menuBtn');
+  if(menuBtn){
+    function openAbout(){
+      const total = (window.markers && window.markers.length) || 0;
+      showToast('SPIDY TRACKER — ' + total + ' live sighting(s) on the map. Tap TRACK NOW to add yours.');
+    }
+    menuBtn.addEventListener('click', openAbout);
+    menuBtn.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') openAbout(); });
+  }
+
+  /* ---------- CONNECTIVITY STATUS ---------- */
+  window.addEventListener('offline', function(){
+    if(typeof showToast === 'function') showToast('📡 No internet — sightings won\'t save until back online');
+  });
+  window.addEventListener('online', function(){
+    if(typeof showToast === 'function') showToast('✅ Back online');
+  });
+
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(function(){
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2200);
+  }
+
+  /* ---------- SHARE YOUR WEB ---------- */
+  document.getElementById('shareBtn').addEventListener('click', function(){
+    const shareData = {
+      title: 'Spidy Tracker',
+      text: 'Check out my Spidy Tracker — live web signal map!',
+      url: window.location.href
+    };
+    if(navigator.share){
+      navigator.share(shareData).catch(function(){});
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(window.location.href).then(function(){
+        showToast('Link copied!');
+      }).catch(function(){
+        showToast('Could not copy link');
+      });
+    } else {
+      showToast(window.location.href);
+    }
+  });
+
+  /* ---------- LIVE MAP: flash sweep + all pins ---------- */
+  document.getElementById('liveMapBtn').addEventListener('click', function(){
+    beep();
+    showToast('Scanning global grid...');
+    markers.forEach(function(marker, i){
+      setTimeout(function(){
+        const el = marker.getElement();
+        if(!el) return;
+        const body = el.querySelector('.pin-body');
+        const ring = el.querySelector('.pin-ring');
+        if(body){ body.classList.remove('tap'); void body.offsetWidth; body.classList.add('tap'); }
+        if(ring){ ring.classList.remove('burst'); void ring.offsetWidth; ring.classList.add('burst'); }
+      }, i * 80);
+    });
+  });
+
+  /* ---------- TRACK NOW: handled by the real GPS + Supabase tracking script below ---------- */
+</script>
+
+
+<script>
+/* ---------- SUPABASE LIVE VISITORS ---------- */
+(function(){
+  const SUPABASE_URL = 'https://wlxsoxwyoczcpxkajgkf.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
+
+  if(!window.supabase) return;
+
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const idKey = 'spidy-visitor-id';
+  let visitorId = localStorage.getItem(idKey);
+  if(!visitorId){
+    visitorId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
+    localStorage.setItem(idKey, visitorId);
+  }
+
+  const countEl = document.getElementById('visitorCount');
+  function setCount(n){ if(countEl) countEl.textContent = String(n || 0); }
+
+  async function register(){
+    const row = { visitor_id: visitorId, last_seen: new Date().toISOString() };
+    let r = await client.from('live_visitors').upsert(row, {onConflict:'visitor_id'});
+    if(r.error) console.warn('SPIDY live visitor:', r.error.message);
+  }
+
+  async function refresh(){
+    const cutoff = new Date(Date.now() - 45000).toISOString();
+    const r = await client.from('live_visitors')
+      .select('visitor_id', {count:'exact', head:true})
+      .gte('last_seen', cutoff);
+    if(!r.error) setCount(r.count);
+  }
+
+  async function heartbeat(){
+    const r = await client.from('live_visitors')
+      .update({last_seen:new Date().toISOString()})
+      .eq('visitor_id', visitorId);
+    if(r.error) await register();
+    refresh();
+  }
+
+  client.channel('spidy-live-visitors')
+    .on('postgres_changes',
+      {event:'*', schema:'public', table:'live_visitors'},
+      refresh
+    ).subscribe();
+
+  register().then(refresh);
+  setInterval(heartbeat, 20000);
+  setInterval(refresh, 10000);
+})();
+</script>
+
+
+<script id="spiderSenseJS">
+(function(){
+  const btn=document.getElementById('spiderSenseBtn');
+  const mapFrame=document.querySelector('.map-frame');
+  if(!btn||!mapFrame||typeof L==='undefined') return;
+  let active=false, senseCircle=null, pulse=null, status=null, timer=null;
+  function ui(){
+    if(!status){status=document.createElement('div');status.className='spider-sense-status';mapFrame.appendChild(status)}
+    if(!pulse){pulse=document.createElement('div');pulse.className='spider-sense-pulse';mapFrame.appendChild(pulse)}
+  }
+  function highlightMarkers(){
+    if(!window.markers||!window.userMarker) return 0;
+    const center=window.userMarker.getLatLng();
+    let hits=0;
+    window.markers.forEach(function(m){
+      const el=m.getElement(); if(!el) return;
+      const d=center.distanceTo(m.getLatLng());
+      const hit=d<=50000;
+      const body=el.querySelector('.pin-body');
+      if(body){body.classList.toggle('sense-hit',active&&hit)}
+      if(hit) hits++;
+    });
+    return hits;
+  }
+  function update(){
+    if(!active) return;
+    if(!window.userMarker){status.textContent='🕷️ LOCATE YOURSELF TO START';return}
+    const p=window.userMarker.getLatLng();
+    if(!senseCircle){senseCircle=L.circle(p,{radius:50000,color:'#ffb020',weight:2,opacity:.5,fillColor:'#ffb020',fillOpacity:.035,dashArray:'8 8'}).addTo(map)}else senseCircle.setLatLng(p);
+    const pt=map.latLngToContainerPoint(p);
+    pulse.style.left=pt.x+'px';pulse.style.top=pt.y+'px';pulse.classList.add('active');
+    const hits=highlightMarkers();
+    status.textContent='🕷️ SPIDER SENSE  •  '+hits+' SIGNAL'+(hits===1?'':'S')+' WITHIN 50 KM';
+  }
+  function start(){
+    ui();active=true;btn.classList.add('active');btn.textContent='🕷️ SENSE ON';
+    if(!window.userMarker){document.getElementById('locateBtn')?.click()}
+    update();timer=setInterval(update,1000);
+    if(typeof showToast==='function') showToast('Spider Sense scanning...');
+  }
+  function stop(){
+    active=false;btn.classList.remove('active');btn.textContent='🕷️ SENSE';
+    if(timer) clearInterval(timer);timer=null;
+    if(senseCircle){map.removeLayer(senseCircle);senseCircle=null}
+    if(pulse)pulse.classList.remove('active');
+    document.querySelectorAll('.pin-body.sense-hit').forEach(function(e){e.classList.remove('sense-hit')});
+    if(status)status.classList.remove('show');
+  }
+  btn.addEventListener('click',function(){active?stop():start()});
+  // show status while scanning; the existing locate handler sets window.userMarker below via the patch.
+  window.spiderSenseUpdate=update;
+})();
+</script>
+
+<script>
+/* ---------- SPIDY TRACKING + SUPABASE SIGHTINGS ---------- */
+(function(){
+  const SUPABASE_URL = 'https://wlxsoxwyoczcpxkajgkf.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
+  if(!window.supabase) return;
+
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const sightingMarkers = new Map();
+
+  function notify(message){
+    if(typeof showToast === 'function') showToast(message);
+    else {
+      const el=document.getElementById('toast');
+      if(!el) return;
+      el.textContent=message;
+      el.style.opacity='1';
+      clearTimeout(window.__spidyToast);
+      window.__spidyToast=setTimeout(()=>el.style.opacity='0',2600);
+    }
+  }
+
+  function coords(row){
+    const lat=Number(row.latitude ?? row.lat);
+    const lng=Number(row.longitude ?? row.lng ?? row.lon);
+    return Number.isFinite(lat)&&Number.isFinite(lng)?{lat,lng}:null;
+  }
+
+  function iconFor(color){
+    const safe=['red','amber','blue','white'].includes(color)?color:'red';
+    return L.divIcon({
+      className:'pin-marker',
+      html:'<span class="pin-body '+safe+'">🕷️<span class="pin-ring '+safe+'"></span></span>',
+      iconSize:[32,32],
+      iconAnchor:[16,16]
+    });
+  }
+
+  function addRemoteSighting(row){
+    if(!row) return;
+    const c=coords(row);
+    if(!c) return;
+    const key=String(row.id ?? (c.lat+':'+c.lng));
+
+    if(sightingMarkers.has(key)){
+      // Same sighting updated (e.g. re-tracked) — move the existing pin instead of stacking a new one.
+      const existing=sightingMarkers.get(key);
+      existing.setLatLng([c.lat,c.lng]);
+      existing.setPopupContent(
+        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
+        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
+        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
+      );
+      const entry=(window.spidySightingsData||[]).find(function(d){ return d.__key===key; });
+      if(entry){ entry.lat=c.lat; entry.lng=c.lng; if(window.globe) window.globe.pointsData(window.spidySightingsData); }
+      return;
+    }
+
+    const marker=L.marker([c.lat,c.lng],{icon:iconFor(row.color)})
+      .addTo(map)
+      .bindPopup(
+        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
+        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
+        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
+      );
+
+    sightingMarkers.set(key,marker);
+    if(window.markers) window.markers.push(marker);
+
+    if(window.spidySightingsData){
+      const colorHex = row.color === 'red' ? '#e4453f' : (row.color === 'amber' ? '#ffb020' : (row.color === 'blue' ? '#4fa8d8' : '#ffffff'));
+      window.spidySightingsData.push({ lat:c.lat, lng:c.lng, label:row.label || 'Spidy Sighting', color:colorHex, __key:key });
+      if(window.globe && typeof window.globe.pointsData === 'function'){
+        window.globe.pointsData(window.spidySightingsData);
+      }
+    }
+  }
+
+  async function loadRemoteSightings(){
+    const cutoff = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const r=await db.from('sightings').select('*').gte('created_at', cutoff).order('created_at',{ascending:false}).limit(300);
+    if(r.error){
+      console.warn('SPIDY sightings load:',r.error.message);
+      return;
+    }
+    (r.data||[]).forEach(addRemoteSighting);
+  }
+
+  async function saveSighting(lat,lng){
+    const visitorId = localStorage.getItem('spidy-visitor-id') ||
+      (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random());
+    if(!localStorage.getItem('spidy-visitor-id')) localStorage.setItem('spidy-visitor-id', visitorId);
+
+    const base={latitude:lat,longitude:lng};
+
+    // Upsert on visitor_id so re-tracking moves YOUR pin instead of creating a new one.
+    let r=await db.from('sightings').upsert({
+      ...base,
+      visitor_id:visitorId,
+      label:'Live Sighting',
+      color:'red',
+      status:'active'
+    },{onConflict:'visitor_id'}).select().single();
+
+    // Fallback for a minimal table containing only coordinates.
+    if(r.error){
+      console.warn('Rich sightings insert failed:',r.error.message);
+      r=await db.from('sightings').insert(base).select().single();
+    }
+
+    if(r.error){
+      console.error('SPIDY sightings insert:',r.error);
+      notify('⚠️ GPS found, but Supabase save failed');
+      return false;
+    }
+
+    addRemoteSighting(r.data);
+    return true;
+  }
+
+  let trackCooldownUntil = 0;
+
+  function trackNow(){
+    if(!navigator.geolocation){
+      notify('📍 GPS is not supported');
+      return;
+    }
+    if(!navigator.onLine){
+      notify('📡 No internet connection — try again when online');
+      return;
+    }
+    const now = Date.now();
+    if(now < trackCooldownUntil){
+      notify('⏳ Please wait a few seconds before tracking again');
+      return;
+    }
+    trackCooldownUntil = now + 15000;
+
+    const trackButton = document.getElementById('trackNowBtn');
+    if(trackButton){ trackButton.style.opacity = '0.6'; trackButton.style.pointerEvents = 'none'; trackButton.textContent = 'LOCATING...'; }
+    function resetButton(){
+      if(trackButton){ trackButton.style.opacity = ''; trackButton.style.pointerEvents = ''; trackButton.textContent = 'TRACK NOW'; }
+    }
+
+    notify('📍 Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(async function(pos){
+      const lat=pos.coords.latitude;
+      const lng=pos.coords.longitude;
+
+      // Keep the existing user-location marker in sync.
+      if(window.userMarker) map.removeLayer(window.userMarker);
+      const icon=L.divIcon({
+        className:'pin-marker',
+        html:'<span class="pin-body white glow">🕸️</span>',
+        iconSize:[32,32],
+        iconAnchor:[16,16]
+      });
+      window.userMarker=L.marker([lat,lng],{icon}).addTo(map)
+        .bindPopup('<b>Your location</b><br>'+lat.toFixed(5)+', '+lng.toFixed(5));
+
+      map.flyTo([lat,lng],13,{duration:1.2});
+
+      const saved=await saveSighting(lat,lng);
+      if(saved) notify('🕷️ Your sighting was saved');
+      resetButton();
+    },function(err){
+      const messages={
+        1:'📍 Location permission denied',
+        2:'📍 Location unavailable',
+        3:'📍 Location request timed out'
+      };
+      notify(messages[err.code] || '📍 Could not get your location');
+      resetButton();
+      trackCooldownUntil = 0;
+    },{
+      enableHighAccuracy:true,
+      timeout:15000,
+      maximumAge:0
+    });
+  }
+
+  const trackButton=document.getElementById('trackNowBtn');
+  if(trackButton) trackButton.addEventListener('click',trackNow);
+
+  // NOTE: the Locate/Target button intentionally keeps its own handler
+  // (defined earlier) which only shows "you are here" on the map — it
+  // does NOT publish your location to the public sightings table.
+  // Only "Track Now" saves a sighting to Supabase.
+
+  loadRemoteSightings();
+
+  db.channel('spidy-sightings')
+    .on('postgres_changes',{
+      event:'INSERT',
+      schema:'public',
+      table:'sightings'
+    },function(payload){
+      addRemoteSighting(payload.new);
+      notify('🕷️ New sighting detected');
+    })
+    .on('postgres_changes',{
+      event:'UPDATE',
+      schema:'public',
+      table:'sightings'
+    },function(payload){
+      addRemoteSighting(payload.new);
+    })
+    .subscribe(function(status){
+      if(status==='CHANNEL_ERROR') console.warn('SPIDY sightings realtime unavailable');
+    });
+
+  window.spidyTrackNow=trackNow;
+})();
+</script>
+
+</body>
+</html>
