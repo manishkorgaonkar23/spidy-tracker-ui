@@ -1289,7 +1289,7 @@
     const base={latitude:lat,longitude:lng};
 
     // Upsert on visitor_id so re-tracking moves YOUR pin instead of creating a new one.
-    let r=await db.from('sightings').upsert({
+    const r=await db.from('sightings').upsert({
       ...base,
       visitor_id:visitorId,
       label:'Live Sighting',
@@ -1297,15 +1297,13 @@
       status:'active'
     },{onConflict:'visitor_id'}).select().single();
 
-    // Fallback for a minimal table containing only coordinates.
-    if(r.error){
-      console.warn('Rich sightings insert failed:',r.error.message);
-      r=await db.from('sightings').insert(base).select().single();
-    }
-
     if(r.error){
       console.error('SPIDY sightings insert:',r.error);
-      notify('⚠️ GPS found, but Supabase save failed');
+      if(r.error.message && r.error.message.toLowerCase().indexOf('too many requests') !== -1){
+        notify('⏳ Please wait a few seconds before tracking again');
+      }else{
+        notify('⚠️ GPS found, but Supabase save failed');
+      }
       return false;
     }
 
