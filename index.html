@@ -510,6 +510,8 @@
         <span style="font-family:'Press Start 2P',monospace; font-size:12px; color:var(--ink);">SPIDER CHAT</span>
         <div style="display:flex; gap:10px; align-items:center;">
           <span id="chatAdminLabel" style="font-family:'VT323',monospace; font-size:14px; color:var(--green); display:none;">👑 Admin</span>
+          <span id="chatLogoutLink" style="font-family:'VT323',monospace; font-size:14px; color:#e4453f; cursor:pointer; text-decoration:underline; display:none;">Logout</span>
+          <span id="chatLogoutLink" style="font-family:'VT323',monospace; font-size:14px; color:#e4453f; cursor:pointer; text-decoration:underline; display:none;">Logout</span>
           <span id="chatAdminLink" style="font-family:'VT323',monospace; font-size:14px; color:#7fb0c4; cursor:pointer; text-decoration:underline;">Owner login</span>
           <span id="chatCloseBtn" style="cursor:pointer; font-size:20px; color:var(--ink); line-height:1;">✕</span>
         </div>
@@ -1424,6 +1426,7 @@
   const sendBtn = document.getElementById('chatSendBtn');
   const adminLink = document.getElementById('chatAdminLink');
   const adminLabel = document.getElementById('chatAdminLabel');
+  const logoutLink = document.getElementById('chatLogoutLink');
   const loginRow = document.getElementById('chatLoginRow');
   const emailInput = document.getElementById('chatAdminEmail');
   const passInput = document.getElementById('chatAdminPass');
@@ -1483,8 +1486,14 @@
   function refreshAdminUI(){
     adminLink.style.display = isAdmin ? 'none' : 'inline';
     adminLabel.style.display = isAdmin ? 'inline' : 'none';
+    logoutLink.style.display = isAdmin ? 'inline' : 'none';
     loginRow.style.display = 'none';
   }
+
+  logoutLink.addEventListener('click', async function(){
+    await chat.auth.signOut();
+    if(typeof showToast === 'function') showToast('Logged out');
+  });
 
   async function checkSession(){
     const { data } = await chat.auth.getSession();
