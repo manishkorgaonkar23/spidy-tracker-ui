@@ -499,7 +499,41 @@
     <div class="cta" id="liveMapBtn" style="cursor:pointer;">LIVE MAP</div>
     <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
   </div>
+  <div class="cta-row">
+    <div class="cta" id="chatBtn" style="cursor:pointer; width:100%;">💬 WEB CHAT</div>
+  </div>
 
+  <div id="chatOverlay" style="display:none; position:fixed; inset:0; background:rgba(3,20,30,0.85); z-index:5001; align-items:flex-end; justify-content:center;">
+    <div style="width:100%; max-width:480px; height:78vh; background:#0a2436; border-top:3px solid var(--frame-light); border-radius:16px 16px 0 0; display:flex; flex-direction:column; overflow:hidden;">
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:2px solid #123246;">
+        <span style="font-family:'Press Start 2P',monospace; font-size:12px; color:var(--ink);">SPIDER CHAT</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span id="chatAdminLabel" style="font-family:'VT323',monospace; font-size:14px; color:var(--green); display:none;">👑 Admin</span>
+          <span id="chatAdminLink" style="font-family:'VT323',monospace; font-size:14px; color:#7fb0c4; cursor:pointer; text-decoration:underline;">Owner login</span>
+          <span id="chatCloseBtn" style="cursor:pointer; font-size:20px; color:var(--ink); line-height:1;">✕</span>
+        </div>
+      </div>
+
+      <div style="padding:8px 12px; font-family:'VT323',monospace; font-size:13px; color:#7fb0c4; border-bottom:1px solid #123246; background:rgba(255,176,32,0.08);">
+        ⚠️ Public chat — visible to everyone. Don't share phone numbers, addresses, or other personal info.
+      </div>
+
+      <div id="chatLoginRow" style="display:none; gap:6px; padding:10px 12px; border-bottom:2px solid #123246;">
+        <input id="chatAdminEmail" type="email" placeholder="Owner email" style="flex:1; min-width:0; padding:8px; border-radius:6px; border:1px solid #234a5e; background:#04202f; color:#dff3fb; font-family:'VT323',monospace; font-size:15px;">
+        <input id="chatAdminPass" type="password" placeholder="Password" style="flex:1; min-width:0; padding:8px; border-radius:6px; border:1px solid #234a5e; background:#04202f; color:#dff3fb; font-family:'VT323',monospace; font-size:15px;">
+        <button id="chatAdminSubmit" style="padding:8px 12px; border-radius:6px; border:none; background:var(--amber); font-family:'VT323',monospace; font-size:15px; cursor:pointer;">Go</button>
+      </div>
+
+      <div id="chatMessages" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px;"></div>
+
+      <div style="display:flex; gap:8px; padding:10px; border-top:2px solid #123246;">
+        <input id="chatInput" type="text" maxlength="500" placeholder="Say something..." style="flex:1; min-width:0; padding:10px; border-radius:8px; border:1px solid #234a5e; background:#04202f; color:#dff3fb; font-family:'VT323',monospace; font-size:16px;">
+        <button id="chatSendBtn" style="padding:10px 16px; border-radius:8px; border:none; background:var(--red); color:#fff; font-family:'Press Start 2P',monospace; font-size:10px; cursor:pointer;">SEND</button>
+      </div>
+
+    </div>
+  </div>
 
   <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
 
@@ -1334,6 +1368,158 @@
     });
 
   window.spidyTrackNow=trackNow;
+})();
+</script>
+
+<script>
+/* ---------- SPIDER CHAT (public chat, owner-only delete, basic precautions) ---------- */
+(function(){
+  const SUPABASE_URL = 'https://wlxsoxwyoczcpxkajgkf.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag';
+  if(!window.supabase) return;
+
+  const chat = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+  const overlay = document.getElementById('chatOverlay');
+  const chatBtn = document.getElementById('chatBtn');
+  const closeBtn = document.getElementById('chatCloseBtn');
+  const messagesEl = document.getElementById('chatMessages');
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const adminLink = document.getElementById('chatAdminLink');
+  const adminLabel = document.getElementById('chatAdminLabel');
+  const loginRow = document.getElementById('chatLoginRow');
+  const emailInput = document.getElementById('chatAdminEmail');
+  const passInput = document.getElementById('chatAdminPass');
+  const submitBtn = document.getElementById('chatAdminSubmit');
+
+  if(!overlay || !chatBtn) return;
+
+  let isAdmin = false;
+  const idKey = 'spidy-visitor-id';
+  let visitorId = localStorage.getItem(idKey);
+  if(!visitorId){
+    visitorId = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random());
+    localStorage.setItem(idKey, visitorId);
+  }
+
+  // Basic first-line-of-defense word filter (not foolproof, backstop for obvious abuse)
+  const BLOCKED_WORDS = ['fuck','shit','bitch','asshole','bastard','randi','chutiya','madarchod','bhosdi','saala kutta'];
+  function containsBlockedWord(text){
+    const lower = text.toLowerCase();
+    return BLOCKED_WORDS.some(function(w){ return lower.indexOf(w) !== -1; });
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function renderMessage(row){
+    const wrap = document.createElement('div');
+    wrap.dataset.id = row.id;
+    wrap.style.cssText = 'background:#0f2c40; border:1px solid #1c405a; border-radius:8px; padding:8px 10px; font-family:\'VT323\',monospace; color:#dff3fb; font-size:16px; display:flex; justify-content:space-between; gap:8px; align-items:flex-start;';
+    const time = row.created_at ? new Date(row.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+    wrap.innerHTML =
+      '<div style="min-width:0;"><span style="color:#7fb0c4;">'+ (row.name ? escapeHtml(row.name) : 'Visitor') +'</span> '
+      + '<span style="opacity:.6; font-size:13px;">'+time+'</span><br>'
+      + '<span style="word-break:break-word;">'+escapeHtml(row.message)+'</span></div>'
+      + (isAdmin ? '<span class="chat-del" style="cursor:pointer; color:#e4453f; flex-shrink:0;">🗑</span>' : '');
+    if(isAdmin){
+      const del = wrap.querySelector('.chat-del');
+      del.addEventListener('click', async function(){
+        await chat.from('messages').delete().eq('id', row.id);
+        wrap.remove();
+      });
+    }
+    return wrap;
+  }
+
+  async function loadMessages(){
+    const r = await chat.from('messages').select('*').order('created_at', {ascending:true}).limit(200);
+    if(r.error){ console.warn('SPIDY chat load:', r.error.message); return; }
+    messagesEl.innerHTML = '';
+    (r.data || []).forEach(function(row){ messagesEl.appendChild(renderMessage(row)); });
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function refreshAdminUI(){
+    adminLink.style.display = isAdmin ? 'none' : 'inline';
+    adminLabel.style.display = isAdmin ? 'inline' : 'none';
+    loginRow.style.display = 'none';
+  }
+
+  async function checkSession(){
+    const { data } = await chat.auth.getSession();
+    isAdmin = !!(data && data.session);
+    refreshAdminUI();
+    loadMessages();
+  }
+  checkSession();
+
+  chat.auth.onAuthStateChange(function(_event, session){
+    isAdmin = !!session;
+    refreshAdminUI();
+    loadMessages();
+  });
+
+  chatBtn.addEventListener('click', function(){
+    overlay.style.display = 'flex';
+    loadMessages();
+  });
+  closeBtn.addEventListener('click', function(){ overlay.style.display = 'none'; });
+
+  adminLink.addEventListener('click', function(){
+    loginRow.style.display = loginRow.style.display === 'flex' ? 'none' : 'flex';
+  });
+
+  submitBtn.addEventListener('click', async function(){
+    const email = emailInput.value.trim();
+    const pass = passInput.value;
+    if(!email || !pass) return;
+    const r = await chat.auth.signInWithPassword({ email, password: pass });
+    if(r.error){
+      if(typeof showToast === 'function') showToast('Login failed: ' + r.error.message);
+      return;
+    }
+    passInput.value = '';
+    if(typeof showToast === 'function') showToast('Signed in as owner');
+  });
+
+  async function sendMessage(){
+    const text = input.value.trim();
+    if(!text) return;
+    if(containsBlockedWord(text)){
+      if(typeof showToast === 'function') showToast('Message blocked — please keep it respectful');
+      return;
+    }
+    input.value = '';
+    const r = await chat.from('messages').insert({
+      visitor_id: visitorId,
+      name: isAdmin ? 'Owner' : 'Visitor',
+      message: text
+    });
+    if(r.error && typeof showToast === 'function'){
+      showToast(r.error.message.indexOf('too fast') !== -1 ? 'Slow down a bit' : 'Message failed to send');
+    }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', function(e){ if(e.key === 'Enter') sendMessage(); });
+
+  chat.channel('spidy-chat')
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages' }, function(payload){
+      if(overlay.style.display === 'flex'){
+        messagesEl.appendChild(renderMessage(payload.new));
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    })
+    .on('postgres_changes', { event:'DELETE', schema:'public', table:'messages' }, function(payload){
+      const el = messagesEl.querySelector('[data-id="'+payload.old.id+'"]');
+      if(el) el.remove();
+    })
+    .subscribe();
 })();
 </script>
 
