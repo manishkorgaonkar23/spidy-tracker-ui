@@ -1193,6 +1193,52 @@
     });
   }
 
+  let isSightingsAdmin = false;
+  async function checkSightingsAdmin(){
+    try{
+      const { data } = await db.auth.getSession();
+      isSightingsAdmin = !!(data && data.session);
+    }catch(e){ isSightingsAdmin = false; }
+  }
+  checkSightingsAdmin();
+  db.auth.onAuthStateChange(function(_event, session){
+    isSightingsAdmin = !!session;
+  });
+
+  window.spidyDeleteSighting = async function(id){
+    const r = await db.from('sightings').delete().eq('id', id);
+    if(r.error){
+      if(typeof showToast === 'function') showToast('Delete failed: ' + r.error.message);
+      return;
+    }
+    const key = String(id);
+    const marker = sightingMarkers.get(key);
+    if(marker){
+      map.removeLayer(marker);
+      sightingMarkers.delete(key);
+      if(window.markers){
+        const idx = window.markers.indexOf(marker);
+        if(idx !== -1) window.markers.splice(idx, 1);
+      }
+    }
+    if(window.spidySightingsData){
+      window.spidySightingsData = window.spidySightingsData.filter(function(d){ return d.__key !== key; });
+      if(window.globe) window.globe.pointsData(window.spidySightingsData);
+    }
+    if(typeof showToast === 'function') showToast('Sighting deleted');
+  };
+
+  function popupContent(row){
+    const base =
+      '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
+      row.latitude.toFixed(5)+', '+row.longitude.toFixed(5)+
+      (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '');
+    if(isSightingsAdmin && row.id != null){
+      return base + '<br><a href="javascript:void(0)" onclick="window.spidyDeleteSighting('+row.id+')" style="color:#e4453f;font-weight:bold;">🗑 Delete this sighting</a>';
+    }
+    return base;
+  }
+
   function addRemoteSighting(row){
     if(!row) return;
     const c=coords(row);
@@ -1203,11 +1249,7 @@
       // Same sighting updated (e.g. re-tracked) — move the existing pin instead of stacking a new one.
       const existing=sightingMarkers.get(key);
       existing.setLatLng([c.lat,c.lng]);
-      existing.setPopupContent(
-        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
-        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
-        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
-      );
+      existing.setPopupContent(popupContent(Object.assign({}, row, {latitude:c.lat, longitude:c.lng})));
       const entry=(window.spidySightingsData||[]).find(function(d){ return d.__key===key; });
       if(entry){ entry.lat=c.lat; entry.lng=c.lng; if(window.globe) window.globe.pointsData(window.spidySightingsData); }
       return;
@@ -1215,11 +1257,7 @@
 
     const marker=L.marker([c.lat,c.lng],{icon:iconFor(row.color)})
       .addTo(map)
-      .bindPopup(
-        '<b>'+(row.label || 'Spidy Sighting')+'</b><br>'+
-        c.lat.toFixed(5)+', '+c.lng.toFixed(5)+
-        (row.created_at ? '<br>'+new Date(row.created_at).toLocaleString() : '')
-      );
+      .bindPopup(popupContent(Object.assign({}, row, {latitude:c.lat, longitude:c.lng})));
 
     sightingMarkers.set(key,marker);
     if(window.markers) window.markers.push(marker);
