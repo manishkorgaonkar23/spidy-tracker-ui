@@ -1544,9 +1544,19 @@
       visitor_id: visitorId,
       name: isAdmin ? 'Owner' : 'Visitor',
       message: text
-    });
-    if(r.error && typeof showToast === 'function'){
-      showToast(r.error.message.indexOf('too fast') !== -1 ? 'Slow down a bit' : 'Message failed to send');
+    }).select().single();
+
+    if(r.error){
+      if(typeof showToast === 'function'){
+        showToast(r.error.message.indexOf('too fast') !== -1 ? 'Slow down a bit' : 'Message failed to send');
+      }
+      return;
+    }
+
+    // Show it immediately instead of waiting on the realtime event.
+    if(r.data && !messagesEl.querySelector('[data-id="'+r.data.id+'"]')){
+      messagesEl.appendChild(renderMessage(r.data));
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     }
   }
 
@@ -1555,7 +1565,7 @@
 
   chat.channel('spidy-chat')
     .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages' }, function(payload){
-      if(overlay.style.display === 'flex'){
+      if(overlay.style.display === 'flex' && !messagesEl.querySelector('[data-id="'+payload.new.id+'"]')){
         messagesEl.appendChild(renderMessage(payload.new));
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
