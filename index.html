@@ -201,7 +201,7 @@
   body.light-mode{
     --theme-bg:#eef4f7;
     --theme-map-bg:#dbe8ee;
-    --theme-map-filter:brightness(1) saturate(.75) contrast(1);
+    --theme-map-filter:brightness(1) saturate(1) contrast(1);
   }
 
   body.light-mode .title-plate,
@@ -610,12 +610,12 @@
     subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
   }).addTo(map);
 
-  const lightBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+  const lightBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
   });
 
-  const lightLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+  const lightLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
   });
