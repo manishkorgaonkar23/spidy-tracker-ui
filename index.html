@@ -538,6 +538,30 @@
     </div>
   </div>
 
+  <div id="legendOverlay" style="display:none; position:fixed; inset:0; background:rgba(3,20,30,0.85); z-index:5001; align-items:center; justify-content:center;">
+    <div style="width:88%; max-width:400px; background:#0a2436; border:3px solid var(--frame-light); border-radius:12px; padding:16px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <span style="font-family:'Press Start 2P',monospace; font-size:12px; color:var(--ink);">MAP LEGEND</span>
+        <span id="legendCloseBtn" style="cursor:pointer; font-size:20px; color:var(--ink); line-height:1;">✕</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px; font-family:'VT323',monospace; font-size:16px; color:#dff3fb;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span style="width:20px; height:20px; border-radius:50%; background:var(--red); flex-shrink:0;"></span>
+          <span><b>Red</b> — Your live position (Track Now). Moves each time, doesn't stack.</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span style="width:20px; height:20px; border-radius:50%; background:var(--blue); flex-shrink:0;"></span>
+          <span><b>Blue</b> — A dropped trail pin (Drop Pin). Every tap adds a new one.</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span style="width:20px; height:20px; border-radius:50%; background:#fff; flex-shrink:0;"></span>
+          <span><b>White</b> — "You are here" marker (Locate). Only visible to you, not saved.</span>
+        </div>
+      </div>
+      <div id="legendCount" style="margin-top:14px; padding-top:12px; border-top:1px solid #123246; font-family:'VT323',monospace; font-size:15px; color:#7fb0c4;"></div>
+    </div>
+  </div>
+
   <div id="toast" style="position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:#052233; border:2px solid var(--frame-light); color:var(--ink); font-family:'VT323',monospace; font-size:16px; padding:10px 18px; border-radius:8px; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; z-index:50; white-space:nowrap;"></div>
 
   <div id="webOverlay" class="web-overlay">
@@ -955,11 +979,22 @@
   const menuBtn = document.getElementById('menuBtn');
   if(menuBtn){
     function openAbout(){
-      const total = (window.markers && window.markers.length) || 0;
-      showToast('SPIDY TRACKER — ' + total + ' live sighting(s) on the map. Tap TRACK NOW to add yours.');
+      const overlay = document.getElementById('legendOverlay');
+      const countEl = document.getElementById('legendCount');
+      if(overlay){
+        const total = (window.markers && window.markers.length) || 0;
+        if(countEl) countEl.textContent = total + ' live sighting(s) on the map right now.';
+        overlay.style.display = 'flex';
+      }
     }
     menuBtn.addEventListener('click', openAbout);
     menuBtn.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') openAbout(); });
+    const legendCloseBtn = document.getElementById('legendCloseBtn');
+    const legendOverlay = document.getElementById('legendOverlay');
+    if(legendCloseBtn && legendOverlay){
+      legendCloseBtn.addEventListener('click', function(){ legendOverlay.style.display = 'none'; });
+      legendOverlay.addEventListener('click', function(e){ if(e.target === legendOverlay) legendOverlay.style.display = 'none'; });
+    }
   }
 
   /* ---------- CONNECTIVITY STATUS ---------- */
