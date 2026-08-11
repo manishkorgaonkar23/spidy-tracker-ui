@@ -500,7 +500,8 @@
     <div class="cta" id="trackNowBtn" style="cursor:pointer;">TRACK NOW</div>
   </div>
   <div class="cta-row">
-    <div class="cta" id="chatBtn" style="cursor:pointer; width:100%;">💬 WEB CHAT</div>
+    <div class="cta" id="dropPinBtn" style="cursor:pointer;">📍 DROP PIN</div>
+    <div class="cta" id="chatBtn" style="cursor:pointer;">💬 WEB CHAT</div>
   </div>
 
   <div id="chatOverlay" style="display:none; position:fixed; inset:0; background:rgba(3,20,30,0.85); z-index:5001; align-items:flex-end; justify-content:center;">
@@ -1374,6 +1375,75 @@
       maximumAge:0
     });
   }
+
+  let dropCooldownUntil = 0;
+  function dropPin(){
+    if(!navigator.geolocation){
+      notify('📍 GPS is not supported');
+      return;
+    }
+    if(!navigator.onLine){
+      notify('📡 No internet connection — try again when online');
+      return;
+    }
+    const now = Date.now();
+    if(now < dropCooldownUntil){
+      notify('⏳ Please wait a few seconds before dropping another pin');
+      return;
+    }
+    dropCooldownUntil = now + 6000;
+
+    const dropBtnEl = document.getElementById('dropPinBtn');
+    if(dropBtnEl){ dropBtnEl.style.opacity = '0.6'; dropBtnEl.style.pointerEvents = 'none'; dropBtnEl.textContent = 'LOCATING...'; }
+    function resetDropButton(){
+      if(dropBtnEl){ dropBtnEl.style.opacity = ''; dropBtnEl.style.pointerEvents = ''; dropBtnEl.textContent = '📍 DROP PIN'; }
+    }
+
+    notify('📍 Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(async function(pos){
+      const lat=pos.coords.latitude;
+      const lng=pos.coords.longitude;
+
+      const baseVisitorId = localStorage.getItem('spidy-visitor-id') ||
+        (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random());
+      if(!localStorage.getItem('spidy-visitor-id')) localStorage.setItem('spidy-visitor-id', baseVisitorId);
+      const trailId = baseVisitorId + '-trail-' + Date.now();
+
+      const r = await db.from('sightings').insert({
+        latitude:lat, longitude:lng,
+        visitor_id:trailId,
+        label:'Trail Point',
+        color:'amber',
+        status:'active'
+      }).select().single();
+
+      if(r.error){
+        console.error('SPIDY drop pin insert:',r.error);
+        notify(r.error.message && r.error.message.indexOf('Too many') !== -1 ? '⏳ Slow down a bit' : '⚠️ Could not save this pin');
+      }else{
+        addRemoteSighting(r.data);
+        notify('📍 Pin dropped on your trail');
+      }
+      resetDropButton();
+    },function(err){
+      const messages={
+        1:'📍 Location permission denied',
+        2:'📍 Location unavailable',
+        3:'📍 Location request timed out'
+      };
+      notify(messages[err.code] || '📍 Could not get your location');
+      resetDropButton();
+      dropCooldownUntil = 0;
+    },{
+      enableHighAccuracy:true,
+      timeout:15000,
+      maximumAge:0
+    });
+  }
+
+  const dropPinButton = document.getElementById('dropPinBtn');
+  if(dropPinButton) dropPinButton.addEventListener('click', dropPin);
 
   const trackButton=document.getElementById('trackNowBtn');
   if(trackButton) trackButton.addEventListener('click',trackNow);
