@@ -685,7 +685,7 @@
     const pane = map.getPane('baseTiles');
     pane.style.filter = light
       ? 'none'
-      : 'invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.7)';
+      : 'grayscale(1) invert(0.92) brightness(0.9) contrast(1.15)';
     map.invalidateSize();
   }
 
