@@ -676,38 +676,16 @@
   map.getPane('labelsPane').style.zIndex = 400;
   map.getPane('labelsPane').style.pointerEvents = 'none';
 
-  const darkBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
+  const osmTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    subdomains: 'abc', maxZoom: 19, pane: 'baseTiles'
   }).addTo(map);
-
-  const darkLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
-  }).addTo(map);
-
-  const lightBaseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'baseTiles'
-  });
-
-  const lightLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19, pane: 'labelsPane'
-  });
 
   function setMapTheme(light){
-    if(light){
-      if(map.hasLayer(darkBaseTiles)) map.removeLayer(darkBaseTiles);
-      if(map.hasLayer(darkLabels)) map.removeLayer(darkLabels);
-      lightBaseTiles.addTo(map);
-      lightLabels.addTo(map);
-    }else{
-      if(map.hasLayer(lightBaseTiles)) map.removeLayer(lightBaseTiles);
-      if(map.hasLayer(lightLabels)) map.removeLayer(lightLabels);
-      darkBaseTiles.addTo(map);
-      darkLabels.addTo(map);
-    }
+    const pane = map.getPane('baseTiles');
+    pane.style.filter = light
+      ? 'none'
+      : 'invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.7)';
     map.invalidateSize();
   }
 
