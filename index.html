@@ -682,10 +682,8 @@
   }).addTo(map);
 
   function setMapTheme(light){
-    const pane = map.getPane('baseTiles');
-    pane.style.filter = light
-      ? 'none'
-      : 'grayscale(1) invert(0.92) brightness(0.9) contrast(1.15)';
+    // Map tiles always show their natural colors — only the app UI
+    // (header, buttons, frame) changes with the theme toggle.
     map.invalidateSize();
   }
 
