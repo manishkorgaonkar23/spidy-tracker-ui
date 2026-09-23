@@ -1,0 +1,19 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs every Sunday at 00:00 UTC — well within Supabase's 7-day inactivity window
+    - cron: '0 0 * * 0'
+  workflow_dispatch: {}   # lets you also trigger it manually from the Actions tab anytime
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase to keep the project active
+        run: |
+          curl -s -o /dev/null -w "Supabase ping status: %{http_code}\n" \
+            "https://wlxsoxwyoczcpxkajgkf.supabase.co/rest/v1/sightings?select=id&limit=1" \
+            -H "apikey: sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag" \
+            -H "Authorization: Bearer sb_publishable_rwbuNUiELsMPGpjLWp_2KQ_Wt-r0nag"
+            
